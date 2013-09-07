@@ -1,3 +1,14 @@
+To test:
+$ mkdir bld
+$ cd bld
+$ cmake ..
+$ make 
+$ ./dualcontour ../mechanic.dcf test.ply
+
+This produces a test.ply file that can be viewed with meshlab.
+
+original readme:
+-------------------------------------
 Dual Contouring Implementation in C++
 
 Author: Tao Ju (with QEF code written by Scott Schaefer)
