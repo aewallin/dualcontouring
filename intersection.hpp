@@ -472,20 +472,7 @@ public:
 		return numinters ;
 	}
 
-
-
-
 };
-
-
-
-
-
-
-
-
-
-
 
 
 #endif

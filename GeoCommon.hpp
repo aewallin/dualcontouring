@@ -27,49 +27,41 @@
 #define USE_MINIMIZER
 
 // 3d point with integer coordinates
-typedef struct
-{
+typedef struct {
 	int x, y, z;
 } Point3i;
 
-typedef struct
-{
+typedef struct {
 	Point3i begin;
 	Point3i end;
 } BoundingBox;
 
 // triangle that points to three vertices
-typedef struct 
-{
+typedef struct  {
 	float vt[3][3] ;
 } Triangle;
 
-struct TriangleList
-{
+struct TriangleList {
 	float vt[3][3] ;
 	TriangleList* next ;
 };
 
-struct VertexList
-{
+struct VertexList {
 	float vt[3] ;
 	VertexList* next ;
 };
 
-struct IndexedTriangleList
-{
+struct IndexedTriangleList {
 	int vt[3] ;
 	IndexedTriangleList* next ;
 };
 
 // 3d point with float coordinates
-typedef struct
-{
+typedef struct {
 	float x, y, z;
 } Point3f;
 
-typedef struct
-{
+typedef struct {
 	Point3f begin;
 	Point3f end;
 } BoundingBoxf;

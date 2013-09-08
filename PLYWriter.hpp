@@ -22,18 +22,13 @@
 #ifndef PLYWRITER_H
 #define PLYWRITER_H
 
-class PLYWriter
-{
+class PLYWriter {
 public:
-
 	/// Constructor
-	PLYWriter( )
-	{
-	};
+	PLYWriter( ) { };
 
 	/// Write ply header
-	static void writeHeader ( FILE* fout, int numVert, int numFace )
-	{
+	static void writeHeader ( FILE* fout, int numVert, int numFace ) {
 		// Ply
 		fprintf( fout, "ply\n" ) ;
 
@@ -53,7 +48,8 @@ public:
 		// End
 		fprintf( fout, "end_header\n" ) ;
 	};
-
+    // data written below is not ascii, but binary!
+    
 	/// Write vertex
 	static void writeVertex ( FILE* fout, float vt[3] )
 	{
@@ -93,11 +89,5 @@ public:
 	};
 
 };
-
-
-
-
-
-
 
 #endif

@@ -24,7 +24,7 @@
 #include <iostream>
 //#define LONG _int64
 
-#define ALLOW_INTERSECTION
+//#define ALLOW_INTERSECTION
 
 /*	Parameters
  *	argv[1]:	name of input file (.dcf format)
@@ -39,7 +39,6 @@ int main( int args, char* argv[] )
 	std::cout << " input file: " << argv[1] << "\n";
 	Octree* mytree = new Octree( argv[1] ) ;
 
-
 	// Octree simplification; feel free to change the simplification threshold.
 	// mytree->simplify( .001f ) ;
 
@@ -53,6 +52,7 @@ int main( int args, char* argv[] )
 	// printf("%d intersections found!\n", num) ;
 
 #else
+	std::cout << " Intersection-free algorithm! \n";
 
 	// Intersection-free dual contouring [Ju et al. 2006]
 	mytree->genContourNoInter2( argv[2] ) ;

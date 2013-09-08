@@ -46,45 +46,33 @@
 //#define TESS_NONE
 
 /* Tree nodes */
-class OctreeNode
-{
+class OctreeNode {
 public:
-	OctreeNode(){};
-	virtual int getType() = 0;
+    OctreeNode(){};
+    virtual int getType() = 0; // 0== InternalNode, 1== LeafNode, 2==PseudoLeafNode
 };
 
 
-class LeafNode : public OctreeNode
-{
+class LeafNode : public OctreeNode {
 private:
-	// Signs
-	unsigned char signs;
+    unsigned char signs; // distance-field signs at each corner of cube
 
 public:
-	// Depth
-	char height ;
-
-
-	// Minimizer
-	float mp[3] ;
+    char height ; // depth
+	float mp[3] ; // this is the minimizer point of the QEF
 	int index ;
-
 	// QEF
 	float ata[6], atb[3], btb ;
 
-
 	// Construction
-	LeafNode( int ht, unsigned char sg, float coord[3] ) 
-	{
+	LeafNode( int ht, unsigned char sg, float coord[3] )  {
 		height = ht ;
 		signs = sg ;
 
 		for ( int i = 0 ; i < 6 ; i ++ )
-		{
 			ata[i] = 0 ;
-		}
-		for ( int i = 0 ; i < 3 ; i ++ )
-		{
+
+		for ( int i = 0 ; i < 3 ; i ++ ) {
 			mp[i] = coord[i] ;
 			atb[i] = 0 ;
 		}
@@ -94,34 +82,33 @@ public:
 	};
 
 	// Construction by QEF
-	LeafNode( int ht, unsigned char sg, int st[3], int len, int numint, float inters[12][3], float norms[12][3] ) 
-	{
-		height = ht ;
-		signs = sg ;
-		index = -1 ;
+	// each edge of the cube can have an intersection point
+	// so we can give up to 12 intersection points with 12 normal-vectors
+	// specify numner of intersections in numint
+	//
+	// st is the minimum bounding-box point
+	// st + (1,1,1)*len is the maximum bounding-box point
+	LeafNode( int ht, unsigned char sg, int st[3], int len, int numint, float inters[12][3], float norms[12][3] ) {
+		height = ht;
+		signs = sg;
+		index = -1;
 
 		for ( int i = 0 ; i < 6 ; i ++ )
-		{
 			ata[i] = 0 ;
-		}
-		for ( int i = 0 ; i < 3 ; i ++ )
-		{
+
+		for ( int i = 0 ; i < 3 ; i ++ ) {
 			mp[i] = 0 ;
 			atb[i] = 0 ;
 		}
 		btb = 0 ;
 
 		float pt[3] ={0,0,0} ;
-		if ( numint > 0 )
-		{
-			for ( int i = 0 ; i < numint ; i ++ )
-			{
+		if ( numint > 0 ) {
+			for ( int i = 0 ; i < numint ; i ++ ) {
 				float* norm = norms[i] ;
 				float* p = inters[i] ;
-				
 				// printf("Norm: %f, %f, %f Pts: %f, %f, %f\n", norm[0], norm[1], norm[2], p[0], p[1], p[2] ) ;
-				
-			
+
 				// QEF
 				ata[ 0 ] += (float) ( norm[ 0 ] * norm[ 0 ] );
 				ata[ 1 ] += (float) ( norm[ 0 ] * norm[ 1 ] );
@@ -144,13 +131,14 @@ public:
 				pt[2] += p[2] ;
 			}
 			
+			// we minimize towards the average of all intersection points
 			pt[0] /= numint ;
 			pt[1] /= numint ;
 			pt[2] /= numint ;
 			
 			// Solve
 			float mat[10] ;
-			BoundingBoxf * box = new BoundingBoxf ;
+			BoundingBoxf * box = new BoundingBoxf();
 			box->begin.x = (float) st[0] ;
 			box->begin.y = (float) st[1] ;
 			box->begin.z = (float) st[2] ;
@@ -158,52 +146,46 @@ public:
 			box->end.y = (float) st[1] + len ;
 			box->end.z = (float) st[2] + len ;
 			
+			// eigen.hpp
+			// calculate minimizer point, and return error
+			// mp is the result
 			float error = calcPoint( ata, atb, btb, pt, mp, box, mat ) ;
+
 #ifdef CLAMP // Clamp all minimizers to be inside the cell
-			if ( mp[0] < st[0] || mp[1] < st[1] || mp[2] < st[2] ||
-				mp[0] > st[0] + len || mp[1] > st[1] + len || mp[2] > st[2] + len )
+			if ( mp[0] < st[0] || mp[1] < st[1] || mp[2] < st[2] || // mp is outside bounding-box min-pt
+				mp[0] > st[0] + len || mp[1] > st[1] + len || mp[2] > st[2] + len ) // mp is outside bounding-box max-pt
 			{
-				mp[0] = pt[0] ;
+				mp[0] = pt[0] ; // reject mp by calcPoint, instead clamp solution to the mass-center
 				mp[1] = pt[1] ;
 				mp[2] = pt[2] ;
 			}
 #endif
 		}
-		else
-		{
+		else {
 			printf("Number of edge intersections in this leaf cell is zero!\n") ;
 			mp[0] = st[0] + len / 2;
 			mp[1] = st[1] + len / 2;
 			mp[2] = st[2] + len / 2;
 		}
-		
 	};
 
-
 	// Get type
-	int getType ( )
-	{
+	int getType ( ) {
 		return 1 ;
 	};
 
 	// Get sign
-	int getSign ( int index )
-	{
-		return (( signs >> index ) & 1 );		
+	int getSign ( int index ) {
+		return (( signs >> index ) & 1 );
 	};
 
 };
 
-class PseudoLeafNode : public OctreeNode
-{
+class PseudoLeafNode : public OctreeNode {
 private:
-	// Signs
 	unsigned char signs;
-
 public:
-	// Depth
 	char height ;
-
 
 	// Minimizer
 	float mp[3] ;
@@ -215,44 +197,33 @@ public:
 	// Children 
 	OctreeNode * child[8] ;
 
-	// Construction
-	PseudoLeafNode ( int ht, unsigned char sg, float coord[3] ) 
-	{
+	// Construction, without QEF
+	PseudoLeafNode ( int ht, unsigned char sg, float coord[3] )  {
 		height = ht ;
-
 		signs = sg ;
-
 		for ( int i = 0 ; i < 6 ; i ++ )
-		{
 			ata[i] = 0 ;
-		}
-		for ( int i = 0 ; i < 3 ; i ++ )
-		{
+
+		for ( int i = 0 ; i < 3 ; i ++ ) {
 			mp[i] = coord[i] ;
 			atb[i] = 0 ;
 		}
-
 		btb = 0 ;
 
-		for ( int i = 0 ; i < 8 ; i ++ )
-		{
+		for ( int i = 0 ; i < 8 ; i ++ ) 
 			child[i] = NULL ;
-		}
 
 		index = -1 ;
 	};
 
-	PseudoLeafNode ( int ht, unsigned char sg, float ata1[6], float atb1[3], float btb1, float mp1[3] ) 
-	{
+	// construction with QEF
+	PseudoLeafNode ( int ht, unsigned char sg, float ata1[6], float atb1[3], float btb1, float mp1[3] )  {
 		height = ht ;
 		signs = sg ;
-
 		for ( int i = 0 ; i < 6 ; i ++ )
-		{
 			ata[i] = ata1[i] ;
-		}
-		for ( int i = 0 ; i < 3 ; i ++ )
-		{
+
+		for ( int i = 0 ; i < 3 ; i ++ ) {
 			mp[i] = mp1[i] ;
 			atb[i] = atb1[i] ;
 		}
@@ -260,53 +231,45 @@ public:
 		btb = btb1 ;
 
 		for ( int i = 0 ; i < 8 ; i ++ )
-		{
 			child[i] = NULL ;
-		}
 
 		index = -1 ;
 	};
 	
 	// Get type
-	int getType ( )
-	{
+	int getType ( ) {
 		return 2 ;
 	};
 
 	// Get sign
-	int getSign ( int index )
-	{
-		return (( signs >> index ) & 1 );		
+	int getSign ( int index ) {
+		return (( signs >> index ) & 1 );
 	};
 
 };
 
-class InternalNode : public OctreeNode
-{
+class InternalNode : public OctreeNode {
 public:
-	// Children 
 	OctreeNode * child[8] ;
-
 	// Construction
-	InternalNode ( ) 
-	{
+	InternalNode ( )  {
 		for ( int i = 0 ; i < 8 ; i ++ )
-		{
 			child[i] = NULL ;
-		}
 	};
 
 	// Get type
-	int getType ( )
-	{
-		return 0 ;
+	int getType ( ) {
+		return 0;
 	};
 };
 
 /* Global variables */
 const int edgevmap[12][2] = {{0,4},{1,5},{2,6},{3,7},{0,2},{1,3},{4,6},{5,7},{0,1},{2,3},{4,5},{6,7}};
 const int edgemask[3] = { 5, 3, 6 } ;
+
+// direction from parent st to each of th eight child st
 const int vertMap[8][3] = {{0,0,0},{0,0,1},{0,1,0},{0,1,1},{1,0,0},{1,0,1},{1,1,0},{1,1,1}} ;
+
 const int faceMap[6][4] = {{4, 8, 5, 9}, {6, 10, 7, 11},{0, 8, 1, 10},{2, 9, 3, 11},{0, 4, 2, 6},{1, 5, 3, 7}} ;
 const int cellProcFaceMask[12][3] = {{0,4,0},{1,5,0},{2,6,0},{3,7,0},{0,2,1},{4,6,1},{1,3,1},{5,7,1},{0,1,2},{2,3,2},{4,5,2},{6,7,2}} ;
 const int cellProcEdgeMask[6][5] = {{0,1,2,3,0},{4,5,6,7,0},{0,4,1,5,1},{2,6,3,7,1},{0,2,4,6,2},{1,3,5,7,2}} ;
@@ -342,33 +305,22 @@ const int dirEdge[3][4] = {
 /**
  * Class for building and processing an octree
  */
-class Octree
-{
+class Octree {
 public:
-	/* Public members */
-
-	/// Root node
 	OctreeNode* root ;
 
 	/// Length of grid
-	int dimen ;
-	int maxDepth ;
-	
+	int dimen;
+	int maxDepth;
+
 	/// Has QEF?
-	int hasQEF ;
+	int hasQEF;  // why not bool? used in simplify()
 
 	int faceVerts, edgeVerts, actualTris ;
 	int founds, news ;
 
 public:
-	/**
-	 * Constructor
-	 */
 	Octree ( char* fname ) ;
-
-	/**
-	 * Destructor
-	 */
 	~Octree ( ) ;
 
 	/**
@@ -380,9 +332,8 @@ public:
 	 * Contour
 	 */
 	void genContour ( char* fname ) ;
-	void genContourNoInter ( char* fname ) ;
+	void genContourNoInter ( char* fname ) ; // not called from main() ?
 	void genContourNoInter2 ( char* fname ) ;
-
 
 private:
 	/* Helper functions */
@@ -403,16 +354,18 @@ private:
 	void edgeProcCount ( OctreeNode* node[4], int dir, int& nverts, int& nfaces ) ;
 	void processEdgeCount ( OctreeNode* node[4], int dir, int& nverts, int& nfaces ) ;
 
+/* not used !?
 	void cellProcContourNoInter( OctreeNode* node, int st[3], int len, HashMap2* hash, TriangleList* list, int& numTris ) ;
 	void faceProcContourNoInter( OctreeNode* node[2], int st[3], int len, int dir, HashMap2* hash, TriangleList* list, int& numTris ) ;
 	void edgeProcContourNoInter( OctreeNode* node[4], int st[3], int len, int dir, HashMap2* hash, TriangleList* list, int& numTris ) ;
 	void processEdgeNoInter( OctreeNode* node[4], int st[3], int len, int dir, HashMap2* hash, TriangleList* list, int& numTris ) ;
+*/
 
 	void cellProcContourNoInter2( OctreeNode* node, int st[3], int len, HashMap* hash, IndexedTriangleList* tlist, int& numTris, VertexList* vlist, int& numVerts ) ;
 	void faceProcContourNoInter2( OctreeNode* node[2], int st[3], int len, int dir, HashMap* hash, IndexedTriangleList* tlist, int& numTris, VertexList* vlist, int& numVerts ) ;
 	void edgeProcContourNoInter2( OctreeNode* node[4], int st[3], int len, int dir, HashMap* hash, IndexedTriangleList* tlist, int& numTris, VertexList* vlist, int& numVerts ) ;
 	void processEdgeNoInter2( OctreeNode* node[4], int st[3], int len, int dir, HashMap* hash, IndexedTriangleList* tlist, int& numTris, VertexList* vlist, int& numVerts ) ;
-	
+
 	/**
 	 * Non-intersecting test and tesselation
 	 */
