@@ -50,10 +50,11 @@ Octree::Octree( char* fname )
 void Octree::simplify( float thresh ) {
 	if ( this->hasQEF ) {
 		int st[3] = {0,0,0} ;
-		this->root = simplify( root, st, dimen, thresh ) ;
+		this->root = simplify( this->root, st, this->dimen, thresh ) ;
 	}
 }
 
+// simplify by collapsing nodes where the parent node QEF solution is good enough
 OctreeNode* Octree::simplify( OctreeNode* node, int st[3], int len, float thresh ) {
 	if ( node == NULL )
 		return NULL ;
@@ -61,7 +62,7 @@ OctreeNode* Octree::simplify( OctreeNode* node, int st[3], int len, float thresh
 	int type = node->getType() ;
 
 	if ( type == 0 ) { 	// Internal node
-		InternalNode* inode = ((InternalNode *) node) ;
+		InternalNode* inode = (InternalNode*)node ;
 		int simple = 1 ;
 
 		float ata[6] = { 0, 0, 0, 0, 0, 0 };
@@ -386,27 +387,25 @@ void Octree::readDCF( char* fname ) {
 OctreeNode* Octree::readDCF( FILE* fin, int st[3], int len, int ht ) {
 	OctreeNode* rvalue = NULL ;
 
-	// Get type
 	int type ;
-	fread( &type, sizeof( int ), 1, fin ) ;
-	// printf("Type: %d\n", type);
+	fread( &type, sizeof( int ), 1, fin ) ;  // Get type
+	//printf("Type: %d\n", type);
 
 	if ( type == 0 ) { // Internal node
 		rvalue = new InternalNode() ;
 		int nlen = len / 2 ; // len of child node is half that of parent
 		int nst[3] ;
 
-		for ( int i = 0 ; i < 8 ; i ++ ) { 
-			nst[0] = st[0] + vertMap[i][0] * nlen; // compute child positions
+		for ( int i = 0 ; i < 8 ; i ++ ) {  // create eight child nodes
+			nst[0] = st[0] + vertMap[i][0] * nlen; // child st position
 			nst[1] = st[1] + vertMap[i][1] * nlen;
 			nst[2] = st[2] + vertMap[i][2] * nlen;
-			
-			((InternalNode *)rvalue)->child[i] = readDCF( fin, nst, nlen, ht - 1 ) ;
+			((InternalNode *)rvalue)->child[i] = readDCF( fin, nst, nlen, ht - 1 ) ; // height is one less than parent
 		}
 	}
 	else if ( type == 1 ) { // Empty node
 		short sg ;
-		fread( &sg, sizeof( short ), 1, fin ) ;
+		fread( &sg, sizeof( short ), 1, fin ) ; // signs not used??
 	}
 	else if ( type == 2 ) { // Leaf node
 		short rsg[8] ;
@@ -474,6 +473,7 @@ void Octree::genContourNoInter2( char* fname ) {
 	printf("Processing contour...\n") ;
 
 	clock_t start = clock( ) ;
+	// one cellProc call to root processes entire tree
 	cellProcContourNoInter2( root, st, dimen, hash, tlist, numTris, vlist, numVertices ) ;
 	clock_t finish = clock( ) ;
 	printf("Time used: %f seconds.\n", (float) (finish - start) / (float) CLOCKS_PER_SEC ) ;
@@ -519,8 +519,7 @@ void Octree::genContourNoInter2( char* fname ) {
 
 
 // original algorithm, may produce intersecting polygons?
-void Octree::genContour( char* fname )
-{
+void Octree::genContour( char* fname ) {
 	int numTris = 0 ;
 	int numVertices = 0 ;
 
@@ -528,25 +527,25 @@ void Octree::genContour( char* fname )
 	cellProcCount ( root, numVertices, numTris ) ;
 	printf("Vertices counted: %d Triangles counted: %d \n", numVertices, numTris ) ;
 	PLYWriter::writeHeader( fout, numVertices, numTris ) ;
-	int offset = 0 ;
+	int offset = 0; // ?
 
 	clock_t start = clock( ) ;
-	generateVertexIndex( root, offset, fout ) ;
+	generateVertexIndex( root, offset, fout ) ; // write vertices to file, populate node->index
 	actualTris = 0 ;
-	cellProcContour( this->root, fout ) ;
+	cellProcContour( this->root, fout ) ; // a single call to root runs algorithm on entire tree
 	clock_t finish = clock( ) ;
 	printf("Time used: %f seconds.\n", (float) (finish - start) / (float) CLOCKS_PER_SEC ) ;
 	printf("Actual triangles written: %d\n", actualTris ) ;
 	fclose( fout ) ;
 }
 
+// this writes out octree vertices to the PLY file
+// each vertex gets an index, which is stored in node->index
 void Octree::generateVertexIndex( OctreeNode* node, int& offset, FILE* fout ) {
 	int type = node->getType() ;
 
-	if ( type == 0 ) {
-		// Internal node
+	if ( type == 0 ) { // Internal node, recurse into tree
 		InternalNode* inode = ( (InternalNode* ) node ) ;
-
 		for ( int i = 0 ; i < 8 ; i ++ ) {
 			if ( inode->child[i] != NULL )
 				generateVertexIndex( inode->child[i], offset, fout ) ;
@@ -554,14 +553,14 @@ void Octree::generateVertexIndex( OctreeNode* node, int& offset, FILE* fout ) {
 	}
 	else if ( type == 1 ) { // Leaf node
 		LeafNode* lnode = ((LeafNode *) node) ;
-		PLYWriter::writeVertex( fout, lnode->mp ) ;
-		lnode->index = offset ;
-		offset ++ ;
+		PLYWriter::writeVertex( fout, lnode->mp ) ; // write out mp (?)
+		lnode->index = offset;
+		offset++;
 	}
 	else if ( type == 2 ) { // Pseudo leaf node
 		PseudoLeafNode* pnode = ((PseudoLeafNode *) node) ;
-		PLYWriter::writeVertex( fout, pnode->mp ) ;
-		pnode->index = offset ;
+		PLYWriter::writeVertex( fout, pnode->mp ) ; // write out mp
+		pnode->index = offset;
 		offset++;
 	}
 }
@@ -572,27 +571,26 @@ void Octree::cellProcContour( OctreeNode* node, FILE* fout )  {
 
 	int type = node->getType() ;
 
-	if ( type == 0 ) {
+	if ( type == 0 ) { // internal node
 		InternalNode* inode = (( InternalNode * ) node ) ; //why cast?
 
 		// 8 Cell calls on children
 		for ( int i = 0 ; i < 8 ; i ++ ) 
 			cellProcContour( inode->child[ i ], fout );
 
-		// 12 face calls
-		OctreeNode* fcd[2] ;
+		// 12 face calls, faces between each child node
 		for ( int i = 0 ; i < 12 ; i ++ ) {
 			int c[ 2 ] = { cellProcFaceMask[ i ][ 0 ], cellProcFaceMask[ i ][ 1 ] };
+			OctreeNode* fcd[2];
 			fcd[0] = inode->child[ c[0] ] ;
 			fcd[1] = inode->child[ c[1] ] ;
 			faceProcContour( fcd, cellProcFaceMask[ i ][ 2 ], fout ) ;
 		}
 
 		// 6 edge calls
-		OctreeNode* ecd[4] ;
 		for ( int i = 0 ; i < 6 ; i ++ ) {
 			int c[ 4 ] = { cellProcEdgeMask[ i ][ 0 ], cellProcEdgeMask[ i ][ 1 ], cellProcEdgeMask[ i ][ 2 ], cellProcEdgeMask[ i ][ 3 ] };
-
+			OctreeNode* ecd[4] ;
 			for ( int j = 0 ; j < 4 ; j ++ )
 				ecd[j] = inode->child[ c[j] ] ;
 
@@ -601,31 +599,28 @@ void Octree::cellProcContour( OctreeNode* node, FILE* fout )  {
 	}
 };
 
+// node[2] are the two nodes that share a face
+// dir comes from cellProcFaceMask[i][2]  where i=0..11
 void Octree::faceProcContour ( OctreeNode* node[2], int dir, FILE* fout ) 
 {
-//	printf("I am at a face! %d\n", dir ) ;
-	if ( ! ( node[0] && node[1] ) )
-	{
-//		printf("I am none.\n") ;
+	// printf("I am at a face! %d\n", dir ) ;
+	if ( ! ( node[0] && node[1] ) ) {
+		// printf("I am none.\n") ;
 		return ;
 	}
 
 	int type[2] = { node[0]->getType(), node[1]->getType() } ;
 
-	if ( type[0] == 0 || type[1] == 0 ) {
-		int i, j ;
-
+	if ( type[0] == 0 || type[1] == 0 ) { // both nodes internal
 		// 4 face calls
 		OctreeNode* fcd[2] ;
 		for ( int i = 0 ; i < 4 ; i ++ ) {
 			int c[2] = { faceProcFaceMask[ dir ][ i ][ 0 ], faceProcFaceMask[ dir ][ i ][ 1 ] };
 			for ( int j = 0 ; j < 2 ; j ++ ) {
-				if ( type[j] > 0 ) {
-					fcd[j] = node[j] ;
-				}
-				else {
-					fcd[j] = ((InternalNode *) node[ j ] )->child[ c[j] ] ;
-				}
+				if ( type[j] > 0 )
+					fcd[j] = node[j];
+				else 
+					fcd[j] = ((InternalNode *) node[ j ] )->child[ c[j] ];
 			}
 			faceProcContour( fcd, faceProcFaceMask[ dir ][ i ][ 2 ], fout ) ;
 		}
@@ -640,14 +635,11 @@ void Octree::faceProcContour ( OctreeNode* node[2], int dir, FILE* fout )
 			int* order = orders[ faceProcEdgeMask[ dir ][ i ][ 0 ] ] ;
 
 			for ( int j = 0 ; j < 4 ; j ++ ) {
-				if ( type[order[j]] > 0 ) {
+				if ( type[order[j]] > 0 )
 					ecd[j] = node[order[j]] ;
-				}
-				else {
+				else
 					ecd[j] = ( (InternalNode *) node[ order[ j ] ] )->child[ c[j] ] ;
-				}
 			}
-
 			edgeProcContour( ecd, faceProcEdgeMask[ dir ][ i ][ 5 ], fout ) ;
 		}
 //		printf("I am done.\n") ;
@@ -657,6 +649,8 @@ void Octree::faceProcContour ( OctreeNode* node[2], int dir, FILE* fout )
 	}
 };
 
+// a common edge between four nodes in node[4]
+// "dir" comes from cellProcEdgeMask
 void Octree::edgeProcContour ( OctreeNode* node[4], int dir, FILE* fout ) 
 {
 	if ( ! ( node[0] && node[1] && node[2] && node[3] ) )
@@ -666,31 +660,22 @@ void Octree::edgeProcContour ( OctreeNode* node[4], int dir, FILE* fout )
 	int type[4] = { node[0]->getType(), node[1]->getType(), node[2]->getType(), node[3]->getType() } ;
 
 	if ( type[0] > 0 && type[1] > 0 && type[2] > 0 && type[3] > 0 ) {
-		processEdgeWrite( node, dir, fout ) ;
+		processEdgeWrite( node, dir, fout ) ; // a quad/traingle is output?
 	}
-	else
-	{
-		int i, j ;
-
+	else {
 		// 2 edge calls
 		OctreeNode* ecd[4] ;
-		for ( int i = 0 ; i < 2 ; i ++ )
-		{
+		for ( int i = 0 ; i < 2 ; i ++ ) {
 			int c[ 4 ] = { edgeProcEdgeMask[ dir ][ i ][ 0 ], 
 						   edgeProcEdgeMask[ dir ][ i ][ 1 ], 
 						   edgeProcEdgeMask[ dir ][ i ][ 2 ], 
 						   edgeProcEdgeMask[ dir ][ i ][ 3 ] } ;
 
-			for ( int j = 0 ; j < 4 ; j ++ )
-			{
+			for ( int j = 0 ; j < 4 ; j ++ ) {
 				if ( type[j] > 0 )
-				{
 					ecd[j] = node[j] ;
-				}
 				else
-				{
 					ecd[j] = ((InternalNode *) node[j])->child[ c[j] ] ;
-				}
 			}
 
 			edgeProcContour( ecd, edgeProcEdgeMask[ dir ][ i ][ 4 ], fout ) ;
@@ -699,24 +684,20 @@ void Octree::edgeProcContour ( OctreeNode* node[4], int dir, FILE* fout )
 	}
 };
 
-void Octree::processEdgeWrite ( OctreeNode* node[4], int dir, FILE* fout ) 
-{
+void Octree::processEdgeWrite ( OctreeNode* node[4], int dir, FILE* fout )  {
 	// Get minimal cell
-	int i, type, ht, minht = maxDepth+1, mini = -1 ;
+	int type, ht, minht = this->maxDepth+1, mini = -1 ;
 	int ind[4], sc[4], flip[4] = {0,0,0,0} ;
 	int flip2;
-	for ( int i = 0 ; i < 4 ; i ++ )
-	{
-		if ( node[i]->getType() == 1 )
-		{
+	for ( int i = 0 ; i < 4 ; i ++ ) {
+		if ( node[i]->getType() == 1 ) {
 			LeafNode* lnode = ((LeafNode *) node[i]) ;
 
 			int ed = processEdgeMask[dir][i] ;
 			int c1 = edgevmap[ed][0] ;
 			int c2 = edgevmap[ed][1] ;
 
-			if ( lnode->height < minht )
-			{
+			if ( lnode->height < minht ) {
 				minht = lnode->height ;
 				mini = i ;
 				if ( lnode->getSign(c1) > 0 )
@@ -731,21 +712,17 @@ void Octree::processEdgeWrite ( OctreeNode* node[4], int dir, FILE* fout )
 			ind[i] = lnode->index ;
 
 			if ( lnode->getSign( c1 ) == lnode->getSign( c2 ) )
-			{
 				sc[ i ] = 0 ;
-			}
 			else
-			{
 				sc[ i ] = 1 ;
 
 //				if ( lnode->getSign(c1) > 0 )
 //				{
 //					flip[ i ] = 1 ;
 //				}
-			}
+			// }
 		}
-		else
-		{
+		else {
 			PseudoLeafNode* pnode = ((PseudoLeafNode *) node[i]) ;
 
 			int ed = processEdgeMask[dir][i] ;
@@ -757,22 +734,15 @@ void Octree::processEdgeWrite ( OctreeNode* node[4], int dir, FILE* fout )
 				minht = pnode->height ;
 				mini = i ;
 				if ( pnode->getSign(c1) > 0 )
-				{
 					flip2 = 1 ;
-				}			
 				else
-				{
 					flip2 = 0 ;
-				}
 			}
 			ind[i] = pnode->index ;
 
 			if ( pnode->getSign( c1 ) == pnode->getSign( c2 ) )
-			{
 				sc[ i ] = 0 ;
-			}
 			else
-			{
 				sc[ i ] = 1 ;
 
 //				if ( pnode->getSign(c1) > 0 )
@@ -857,8 +827,7 @@ void Octree::processEdgeWrite ( OctreeNode* node[4], int dir, FILE* fout )
 };
 
 
-void Octree::cellProcCount( OctreeNode* node, int& nverts, int& nfaces ) 
-{
+void Octree::cellProcCount( OctreeNode* node, int& nverts, int& nfaces )  {
 	if ( node == NULL )
 		return ;
 
@@ -1700,7 +1669,8 @@ void Octree::makeEdgeVertex( int st[3], int len, int dir, OctreeNode* node[4], f
 };
 
 
-void Octree::cellProcContourNoInter2( OctreeNode* node, int st[3], int len, HashMap* hash, IndexedTriangleList* tlist, int& numTris, VertexList* vlist, int& numVerts )
+void Octree::cellProcContourNoInter2( OctreeNode* node, int st[3], int len, 
+HashMap* hash, IndexedTriangleList* tlist, int& numTris, VertexList* vlist, int& numVerts )
 {
 //	printf("I am at a cell! %d %d %d, %d \n", st[0], st[1], st[2], len ) ;	
 	if ( node == NULL )

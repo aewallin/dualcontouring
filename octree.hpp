@@ -50,6 +50,7 @@ class OctreeNode {
 public:
     OctreeNode(){};
     virtual int getType() = 0; // 0== InternalNode, 1== LeafNode, 2==PseudoLeafNode
+
 };
 
 
@@ -58,10 +59,10 @@ private:
     unsigned char signs; // distance-field signs at each corner of cube
 
 public:
-    char height ; // depth
-	float mp[3] ; // this is the minimizer point of the QEF
-	int index ;
-	// QEF
+    char height; // depth
+	float mp[3]; // this is the minimizer point of the QEF
+	int index; // ?
+	// QEF data
 	float ata[6], atb[3], btb ;
 
 	// Construction
@@ -116,26 +117,20 @@ public:
 				ata[ 3 ] += (float) ( norm[ 1 ] * norm[ 1 ] );
 				ata[ 4 ] += (float) ( norm[ 1 ] * norm[ 2 ] );
 				ata[ 5 ] += (float) ( norm[ 2 ] * norm[ 2 ] );
-				
 				double pn = p[0] * norm[0] + p[1] * norm[1] + p[2] * norm[2] ;
-				
 				atb[ 0 ] += (float) ( norm[ 0 ] * pn ) ;
 				atb[ 1 ] += (float) ( norm[ 1 ] * pn ) ;
 				atb[ 2 ] += (float) ( norm[ 2 ] * pn ) ;
-				
 				btb += (float) pn * (float) pn ;
-				
 				// Minimizer
 				pt[0] += p[0] ;
 				pt[1] += p[1] ;
 				pt[2] += p[2] ;
 			}
-			
 			// we minimize towards the average of all intersection points
 			pt[0] /= numint ;
 			pt[1] /= numint ;
 			pt[2] /= numint ;
-			
 			// Solve
 			float mat[10] ;
 			BoundingBoxf * box = new BoundingBoxf();
@@ -169,27 +164,19 @@ public:
 		}
 	};
 
-	// Get type
-	int getType ( ) {
-		return 1 ;
-	};
-
-	// Get sign
-	int getSign ( int index ) {
-		return (( signs >> index ) & 1 );
-	};
-
+	int getType ( ) { return 1 ; };
+	int getSign ( int index ) { return (( signs >> index ) & 1 ); };
 };
 
+// leaf, but not at max depth (?)
 class PseudoLeafNode : public OctreeNode {
 private:
 	unsigned char signs;
 public:
 	char height ;
 
-	// Minimizer
-	float mp[3] ;
-	int index ;
+	float mp[3]; // Minimizer
+	int index;
 
 	// QEF
 	float ata[6], atb[3], btb ;
@@ -227,9 +214,7 @@ public:
 			mp[i] = mp1[i] ;
 			atb[i] = atb1[i] ;
 		}
-
 		btb = btb1 ;
-
 		for ( int i = 0 ; i < 8 ; i ++ )
 			child[i] = NULL ;
 
@@ -237,42 +222,44 @@ public:
 	};
 	
 	// Get type
-	int getType ( ) {
-		return 2 ;
-	};
+	int getType ( ) { return 2 ; };
 
 	// Get sign
-	int getSign ( int index ) {
-		return (( signs >> index ) & 1 );
-	};
-
+	int getSign ( int index ) { return (( signs >> index ) & 1 ); };
 };
 
 class InternalNode : public OctreeNode {
 public:
 	OctreeNode * child[8] ;
-	// Construction
-	InternalNode ( )  {
+	InternalNode ()  {
 		for ( int i = 0 ; i < 8 ; i ++ )
 			child[i] = NULL ;
 	};
 
-	// Get type
-	int getType ( ) {
-		return 0;
-	};
+	int getType ( ) { return 0; };
 };
 
 /* Global variables */
 const int edgevmap[12][2] = {{0,4},{1,5},{2,6},{3,7},{0,2},{1,3},{4,6},{5,7},{0,1},{2,3},{4,5},{6,7}};
 const int edgemask[3] = { 5, 3, 6 } ;
 
-// direction from parent st to each of th eight child st
+// direction from parent st to each of the eight child st
+// st is the corner of the cube with minimum (x,y,z) coordinates
 const int vertMap[8][3] = {{0,0,0},{0,0,1},{0,1,0},{0,1,1},{1,0,0},{1,0,1},{1,1,0},{1,1,1}} ;
 
 const int faceMap[6][4] = {{4, 8, 5, 9}, {6, 10, 7, 11},{0, 8, 1, 10},{2, 9, 3, 11},{0, 4, 2, 6},{1, 5, 3, 7}} ;
+
+// used in cellProcContour(). 
+// between 8 child-nodes there are 12 faces.
+// the last number is "dir" ?
 const int cellProcFaceMask[12][3] = {{0,4,0},{1,5,0},{2,6,0},{3,7,0},{0,2,1},{4,6,1},{1,3,1},{5,7,1},{0,1,2},{2,3,2},{4,5,2},{6,7,2}} ;
+
+// used in cellProcContour() when calling edgeProc()
+// between 8 children there are 6 common edges
+// table lists the 4 children that share the edge
+// the last number is "dir" ?
 const int cellProcEdgeMask[6][5] = {{0,1,2,3,0},{4,5,6,7,0},{0,4,1,5,1},{2,6,3,7,1},{0,2,4,6,2},{1,3,5,7,2}} ;
+
 const int faceProcFaceMask[3][4][3] = {
 	{{4,0,0},{5,1,0},{6,2,0},{7,3,0}},
 	{{2,0,1},{6,4,1},{3,1,1},{7,5,1}},
@@ -308,43 +295,30 @@ const int dirEdge[3][4] = {
 class Octree {
 public:
 	OctreeNode* root ;
-
-	/// Length of grid
-	int dimen;
+	int dimen; 	/// Length of grid
 	int maxDepth;
-
-	/// Has QEF?
-	int hasQEF;  // why not bool? used in simplify()
-
+	int hasQEF;  // Has QEF? why not bool? used in simplify()
 	int faceVerts, edgeVerts, actualTris ;
 	int founds, news ;
-
 public:
 	Octree ( char* fname ) ;
 	~Octree ( ) ;
-
-	/**
-	 * DC Simplify
-	 */
 	void simplify ( float thresh ) ;
-
-	/**
-	 * Contour
-	 */
 	void genContour ( char* fname ) ;
-	void genContourNoInter ( char* fname ) ; // not called from main() ?
+	//void genContourNoInter ( char* fname ) ; // not called from main() ?
 	void genContourNoInter2 ( char* fname ) ;
 
 private:
-	/* Helper functions */
 	OctreeNode* simplify( OctreeNode* node, int st[3], int len, float thresh ) ;
+
 	void readSOG ( char* fname ) ; // read SOG file
 	OctreeNode* readSOG ( FILE* fin, int st[3], int len, int ht, float origin[3], float range ) ;
 	void readDCF ( char* fname ) ; // read DCF file
 	OctreeNode* readDCF ( FILE* fin, int st[3], int len, int ht ) ;
 
 // Contouring
-	void generateVertexIndex( OctreeNode* node, int& offset, FILE* fout ) ;
+	void generateVertexIndex( OctreeNode* node, int& offset, FILE* fout ) ; // not used by NoInter2-functions?
+
 	void cellProcContour ( OctreeNode* node, FILE* fout ) ;
 	void faceProcContour ( OctreeNode* node[2], int dir, FILE* fout ) ;
 	void edgeProcContour ( OctreeNode* node[4], int dir, FILE* fout ) ;
