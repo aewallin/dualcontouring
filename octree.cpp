@@ -750,7 +750,7 @@ void Octree::processEdgeWrite ( OctreeNode* node[4], int dir, FILE* fout )  {
 //					flip[ i ] = 1 ;
 //					flip2 = 1 ;
 //				}
-			}
+//			}
 		}
 
 	}
