@@ -45,6 +45,7 @@
 //#define TESS_UNIFORM
 //#define TESS_NONE
 
+// old definiton was: 0== InternalNode, 1== LeafNode, 2==PseudoLeafNode
 enum NodeType { INTERNAL, LEAF, PSEUDOLEAF };
 
 /* Tree nodes */
@@ -52,16 +53,12 @@ class OctreeNode {
 public:
     OctreeNode(){};
     virtual NodeType getType() = 0; // 0== InternalNode, 1== LeafNode, 2==PseudoLeafNode
-
-    //virtual int getType() = 0; // 0== InternalNode, 1== LeafNode, 2==PseudoLeafNode
-
 };
 
 
 class LeafNode : public OctreeNode {
 private:
     unsigned char signs; // distance-field signs at each corner of cube
-
 public:
     char height; // depth
 	float mp[3]; // this is the minimizer point of the QEF
@@ -233,13 +230,12 @@ public:
 };
 
 class InternalNode : public OctreeNode {
-public:
+public: // no signs or QEF stored for internal node
 	OctreeNode * child[8] ;
 	InternalNode ()  {
 		for ( int i = 0 ; i < 8 ; i ++ )
 			child[i] = NULL ;
 	};
-
 	NodeType getType ( ) { return INTERNAL; };
 };
 
@@ -345,11 +341,12 @@ private:
 	void processEdgeNoInter2( OctreeNode* node[4], int st[3], int len, int dir, HashMap* hash, IndexedTriangleList* tlist, int& numTris, VertexList* vlist, int& numVerts ) ;
 
 	/**
-	 * Non-intersecting test and tesselation
+	 *  Non-intersecting test and tesselation
 	 */
 	int testFace( int st[3], int len, int dir, float v1[3], float v2[3] ) ;
 	int testEdge( int st[3], int len, int dir, OctreeNode* node[4], float v[4][3] ) ;
-	void makeFaceVertex( int st[3], int len, int dir, OctreeNode* node1, OctreeNode* node2, float v[3] ) ;
+	// not called?
+	// void makeFaceVertex( int st[3], int len, int dir, OctreeNode* node1, OctreeNode* node2, float v[3] ) ;
 	void makeEdgeVertex( int st[3], int len, int dir, OctreeNode* node[4], float mp[4][3], float v[3] ) ;
 };
 
