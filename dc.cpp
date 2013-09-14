@@ -23,6 +23,9 @@
 #include <math.h>
 #include <iostream>
 
+#include <boost/program_options.hpp>
+namespace po = boost::program_options;
+
 //#define ALLOW_INTERSECTION
 
 /*	Parameters
@@ -34,9 +37,33 @@
 
 int main( int args, char* argv[] )
 {
+	// Declare the supported options.
+	po::options_description desc("Allowed options");
+	desc.add_options()
+		("usage","dualcontour input.dcf output.ply [--simplify 0.01]")
+		("help", "produce help message")
+		("simplify", po::value<float>(), "set simplify threshold (float)")
+	;
+
+	po::variables_map vm;
+	po::store(po::parse_command_line(args, argv, desc), vm);
+	po::notify(vm);    
+
+	if (vm.count("help")) {
+		std::cout << desc << "\n";
+		return 1;
+	}
+	float simplify_threshold = -1;
+	if (vm.count("simplify")) {
+		simplify_threshold = vm["simplify"].as<float>();
+		std::cout << "Simplify threshold set: " << simplify_threshold << ".\n";
+	} else {
+		std::cout << "Simplify not set.\n";
+	}
+
 	// Reading input file
 	std::cout << " input file: " << argv[1] << "\n";
-	Octree* mytree = new Octree( argv[1] ) ;
+	Octree* mytree = new Octree( argv[1], simplify_threshold ) ;
 
 	// Octree simplification; feel free to change the simplification threshold.
 	// mytree->simplify( .001f ) ;

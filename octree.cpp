@@ -24,11 +24,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <iostream>
+
 #include "octree.hpp"
 #include "PLYWriter.hpp"
 
-Octree::Octree( char* fname )
+Octree::Octree( char* fname,  double threshold )
 {
+	simplify_threshold = threshold;
 	// Recognize file format
 	if ( strstr( fname, ".sog" ) != NULL || strstr( fname, ".SOG" ) != NULL ) {
 		printf("Reading SOG file format.\n") ;
@@ -61,24 +64,26 @@ OctreeNode* Octree::simplify( OctreeNode* node, int st[3], int len, float thresh
 
 	NodeType type = node->getType() ;
 
-	if ( type == INTERNAL ) { 	// Internal node
+	if ( type == INTERNAL ) {
 		InternalNode* inode = (InternalNode*)node ;
 		int simple = 1 ;
 
+		// QEF data
 		float ata[6] = { 0, 0, 0, 0, 0, 0 };
 		float atb[3] = { 0, 0, 0 } ;
 		float pt[3] = { 0, 0, 0 } ;
-		float mp[3] = { 0, 0, 0 } ;
+		//float mp[3] = { 0, 0, 0 } ;
 		float btb = 0 ;
 		int signs[8] = {-1,-1,-1,-1,-1,-1,-1,-1} ;
 		int midsign = -1 ;
 
+		// child data
 		int nlen = len / 2 ;
 		int nst[3] ;
 		int ec = 0 ;
 		int ht ;
 
-		for ( int i = 0 ; i < 8 ; i ++ ) {
+		for ( int i = 0 ; i < 8 ; i ++ ) { // recurse into tree
 			nst[0] = st[0] + vertMap[i][0] * nlen ;
 			nst[1] = st[1] + vertMap[i][1] * nlen ;
 			nst[2] = st[2] + vertMap[i][2] * nlen ;
@@ -86,15 +91,15 @@ OctreeNode* Octree::simplify( OctreeNode* node, int st[3], int len, float thresh
 			inode->child[i] = simplify( inode->child[i], nst, nlen, thresh ) ;
 			
 			if ( inode->child[i] != NULL ) {
-				if ( inode->child[i]->getType() == 0 ) {
+				if ( inode->child[i]->getType() == INTERNAL ) {
 					simple = 0 ;
 				}
-				else if ( inode->child[i]->getType() == 1 ) {
+				else if ( inode->child[i]->getType() == LEAF ) { // sum leaf QEF
 					LeafNode* lnode = (LeafNode *) inode->child[i] ;
 					ht = lnode->height ;
 
 					for ( int j = 0 ; j < 6 ; j ++ )
-						ata[j] += lnode->ata[j] ;
+						ata[j] += lnode->ata[j] ; 
 
 					for ( int j = 0 ; j < 3 ; j ++ ) {
 						atb[j] += lnode->atb[j] ;
@@ -104,7 +109,7 @@ OctreeNode* Octree::simplify( OctreeNode* node, int st[3], int len, float thresh
 						printf("%f %f %f, Height: %d\n", lnode->mp[0], lnode->mp[1], lnode->mp[2], ht) ;
 
 					btb += lnode->btb ;
-					ec ++ ;
+					ec ++ ; // QEF count (?)
 
 					midsign = lnode->getSign( 7 - i ) ;
 					signs[i] = lnode->getSign( i ) ;
@@ -127,38 +132,33 @@ OctreeNode* Octree::simplify( OctreeNode* node, int st[3], int len, float thresh
 					signs[i] = pnode->getSign( i ) ;
 				}
 			}
-		}
+		} // all QEFs summed 
 
-		if ( simple )
-		{
+		if ( simple ) { // all children INTERNAL (?)
 			// Ok, let's collapse
 			if ( ec == 0 ) {
 				delete node ;
 				return NULL ;
 			}
 			else {
-				pt[0] = pt[0] / ec ;
+				pt[0] = pt[0] / ec ; // average of summed points
 				pt[1] = pt[1] / ec ;
 				pt[2] = pt[2] / ec ;
 				if ( pt[0] < st[0] || pt[1] < st[1] || pt[2] < st[2] ||
 					pt[0] > st[0] + len || pt[1] > st[1] + len || pt[2] > st[2] + len )
-				{
+				{ // pt outside node cube (?)
 					//printf("Out! %f %f %f, Box: (%d %d %d) Len: %d ec: %d\n", pt[0], pt[1], pt[2], st[0],st[1],st[2],len,ec) ;
 				}
 
 				unsigned char sg = 0 ;
 				for ( int i = 0 ; i < 8 ; i ++ ) {
-					if ( signs[i] == 1 ) {
+					if ( signs[i] == 1 )
 						sg |= ( 1 << i ) ;
-					}
-					else if ( signs[i] == -1 ) {
-						// Undetermined, use center sign instead
-						if ( midsign == 1 ) {
+					else if ( signs[i] == -1 ) {  // Undetermined, use center sign instead
+						if ( midsign == 1 )
 							sg |= ( 1 << i ) ;
-						}
-						else if ( midsign == -1 ) {
+						else if ( midsign == -1 )
 							printf("Wrong!");
-						}
 					}
 				}
 
@@ -171,26 +171,22 @@ OctreeNode* Octree::simplify( OctreeNode* node, int st[3], int len, float thresh
 				box->end.x = (float) st[0] + len ;
 				box->end.y = (float) st[1] + len ;
 				box->end.z = (float) st[2] + len ;
-				
+				// pt is the average of child-nodes
+				// mp is the new solution point
+				float mp[3] = { 0, 0, 0 } ;
 				float error = calcPoint( ata, atb, btb, pt, mp, box, mat ) ;
 #ifdef CLAMP
 				if ( mp[0] < st[0] || mp[1] < st[1] || mp[2] < st[2] ||
-					mp[0] > st[0] + len || mp[1] > st[1] + len || mp[2] > st[2] + len )
-				{
+					mp[0] > st[0] + len || mp[1] > st[1] + len || mp[2] > st[2] + len ) {
 					mp[0] = pt[0] ;
 					mp[1] = pt[1] ;
 					mp[2] = pt[2] ;
-				}			
+				}
 #endif
-				if ( error <= thresh )
-				{
-					//mp[0] = st[0] + len / 2 ;
-					//mp[1] = st[1] + len / 2 ;
-					//mp[2] = st[2] + len / 2 ;
-
+				if ( error <= thresh ) {
 					PseudoLeafNode* pnode = new PseudoLeafNode( ht+1, sg, ata, atb, btb, mp ) ;
 					for ( int i = 0 ; i < 8 ; i ++ )
-						pnode->child[i] = inode->child[i] ;
+						pnode->child[i] = inode->child[i] ; // why do we retain these?
 
 					delete inode ;
 					return pnode ;
@@ -379,42 +375,52 @@ void Octree::readDCF( char* fname ) {
 	// Recursive reader
 	int st[3] = {0, 0, 0} ;
 	this->root = readDCF( fin, st, dimen, maxDepth ) ;
-	
+	if (simplify_threshold > 0 ) {
+		std::cout << "Simplifying with threshold " << simplify_threshold << "\n";
+		simplify( simplify_threshold );
+	}
 	printf("Done reading.\n") ;	
 	fclose( fin ) ;
 }
 
-OctreeNode* Octree::readDCF( FILE* fin, int st[3], int len, int ht ) {
+// only InternalNode and LeafNode returned by this function
+// st cube corner (x,y,z)
+// len cube side length
+// ht node depth (root has 0, leaf has maxDepth)
+OctreeNode* Octree::readDCF( FILE* fin, int st[3], int len, int height ) {
 	OctreeNode* rvalue = NULL ;
 
 	int type ;
 	fread( &type, sizeof( int ), 1, fin ) ;  // Get type
-	//printf("Type: %d\n", type);
+	// printf("%d %d (%02d, %02d, %02d) NodeType: %d\n", ht, len, st[0], st[1], st[2], type);
 
 	if ( type == 0 ) { // Internal node
 		rvalue = new InternalNode() ;
-		int nlen = len / 2 ; // len of child node is half that of parent
-		int nst[3] ;
+		int child_len = len / 2 ; // len of child node is half that of parent
+		int child_st[3] ;
 
 		for ( int i = 0 ; i < 8 ; i ++ ) {  // create eight child nodes
-			nst[0] = st[0] + vertMap[i][0] * nlen; // child st position
-			nst[1] = st[1] + vertMap[i][1] * nlen;
-			nst[2] = st[2] + vertMap[i][2] * nlen;
-			((InternalNode *)rvalue)->child[i] = readDCF( fin, nst, nlen, ht - 1 ) ; // height is one less than parent
+			child_st[0] = st[0] + vertMap[i][0] * child_len; // child st position
+			child_st[1] = st[1] + vertMap[i][1] * child_len;
+			child_st[2] = st[2] + vertMap[i][2] * child_len;
+			((InternalNode *)rvalue)->child[i] = readDCF( fin, child_st, child_len, height - 1 ) ; // height is one less than parent
 		}
+		return rvalue ;
 	}
-	else if ( type == 1 ) { // Empty node
+	
+	else if ( type == 1 ) { // Empty node, 
 		short sg ;
 		fread( &sg, sizeof( short ), 1, fin ) ; // signs not used??
+		return rvalue ;
 	}
+	
 	else if ( type == 2 ) { // Leaf node
 		short rsg[8] ;
 		fread( rsg, sizeof( short ), 8, fin ) ;
 		unsigned char sg = 0 ;
 		for ( int i = 0 ; i < 8 ; i ++ ) { // set signs
-			if ( rsg[i] != 0 ) {
+			if ( rsg[i] != 0 )
 				sg |= ( 1 << i ) ;
-			}
 		}
 
 		// intersections and normals
@@ -439,17 +445,17 @@ OctreeNode* Octree::readDCF( FILE* fin, int st[3], int len, int ht ) {
 			}
 		}
 		
-		if ( numinters > 0 ) {
-			rvalue = new LeafNode( ht, (unsigned char)sg, st, len, numinters, inters, norms ) ;
-		}
-		else {
+		if ( numinters > 0 )
+			rvalue = new LeafNode( height, sg, st, len, numinters, inters, norms ) ;
+		else
 			rvalue = NULL ;
-		}
+		
+		return rvalue ;
 	}
 	else {
 		printf("Wrong! Type: %d\n", type);
+		exit(-1);
 	}
-	return rvalue ;
 }
 
 // no-intersections algorithm
@@ -1718,10 +1724,8 @@ void Octree::processEdgeNoInter2( OctreeNode* node[4], int st[3], int len, int d
 	int i, type, minht = maxDepth+1, mini = -1 ;
 	int ind[4], sc[4], ht[4], flip=0;
 	float mp[4][3] ;
-	for ( i = 0 ; i < 4 ; i ++ )
-	{
-		if ( node[i]->getType() == 1 )
-		{
+	for ( i = 0 ; i < 4 ; i ++ ) {
+		if ( node[i]->getType() == LEAF ) {
 			LeafNode* lnode = ((LeafNode *) node[i]) ;
 			ht[i] = lnode->height ;
 			mp[i][0] = lnode->mp[0] ;
@@ -1733,18 +1737,13 @@ void Octree::processEdgeNoInter2( OctreeNode* node[4], int st[3], int len, int d
 			int c1 = edgevmap[ed][0] ;
 			int c2 = edgevmap[ed][1] ;
 
-			if ( lnode->height < minht )
-			{
+			if ( lnode->height < minht ) {
 				minht = lnode->height ;
 				mini = i ;
 				if ( lnode->getSign(c1) > 0 )
-				{
 					flip = 1 ;
-				}
 				else
-				{
 					flip = 0 ;
-				}
 			}
 			ind[i] = lnode->index ;
 			if ( ind[i] < 0 )
@@ -1762,16 +1761,11 @@ void Octree::processEdgeNoInter2( OctreeNode* node[4], int st[3], int len, int d
 			}
 
 			if ( lnode->getSign( c1 ) == lnode->getSign( c2 ) )
-			{
 				sc[ i ] = 0 ;
-			}
 			else
-			{
 				sc[ i ] = 1 ;
-			}
 		}
-		else if ( node[i]->getType() == 2 )
-		{
+		else if ( node[i]->getType() == PSEUDOLEAF ) {
 			PseudoLeafNode* pnode = ((PseudoLeafNode *) node[i]) ;
 			ht[i] = pnode->height ;
 			mp[i][0] = pnode->mp[0] ;
@@ -1787,17 +1781,13 @@ void Octree::processEdgeNoInter2( OctreeNode* node[4], int st[3], int len, int d
 				minht = pnode->height ;
 				mini = i ;
 				if ( pnode->getSign(c1) > 0 )
-				{
 					flip = 1 ;
-				}
 				else
-				{
 					flip = 0 ;
-				}
+
 			}
 			ind[i] = pnode->index ;
-			if ( ind[i] < 0 )
-			{
+			if ( ind[i] < 0 ) {
 				// Create new index
 				VertexList* nv = new VertexList ;
 				nv->vt[0] = pnode->mp[0] ;
@@ -1811,16 +1801,11 @@ void Octree::processEdgeNoInter2( OctreeNode* node[4], int st[3], int len, int d
 			}
 
 			if ( pnode->getSign( c1 ) == pnode->getSign( c2 ) )
-			{
 				sc[ i ] = 0 ;
-			}
 			else
-			{
 				sc[ i ] = 1 ;
-			}
 		}
-		else
-		{
+		else {
 			printf("Wrong!\n");
 		}
 

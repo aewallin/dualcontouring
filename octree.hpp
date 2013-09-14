@@ -301,7 +301,7 @@ public:
 	int faceVerts, edgeVerts, actualTris ;
 	int founds, news ;
 public:
-	Octree ( char* fname ) ;
+	Octree ( char* fname , double threshold) ;
 	~Octree ( ) ;
 	void simplify ( float thresh ) ;
 	void genContour ( char* fname ) ;
@@ -309,6 +309,7 @@ public:
 	void genContourNoInter2 ( char* fname ) ;
 
 private:
+	float simplify_threshold;
 	OctreeNode* simplify( OctreeNode* node, int st[3], int len, float thresh ) ;
 
 	void readSOG ( char* fname ) ; // read SOG file
