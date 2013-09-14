@@ -59,9 +59,9 @@ OctreeNode* Octree::simplify( OctreeNode* node, int st[3], int len, float thresh
 	if ( node == NULL )
 		return NULL ;
 
-	int type = node->getType() ;
+	NodeType type = node->getType() ;
 
-	if ( type == 0 ) { 	// Internal node
+	if ( type == INTERNAL ) { 	// Internal node
 		InternalNode* inode = (InternalNode*)node ;
 		int simple = 1 ;
 
@@ -542,22 +542,22 @@ void Octree::genContour( char* fname ) {
 // this writes out octree vertices to the PLY file
 // each vertex gets an index, which is stored in node->index
 void Octree::generateVertexIndex( OctreeNode* node, int& offset, FILE* fout ) {
-	int type = node->getType() ;
+	NodeType type = node->getType() ;
 
-	if ( type == 0 ) { // Internal node, recurse into tree
+	if ( type == INTERNAL ) { // Internal node, recurse into tree
 		InternalNode* inode = ( (InternalNode* ) node ) ;
 		for ( int i = 0 ; i < 8 ; i ++ ) {
 			if ( inode->child[i] != NULL )
 				generateVertexIndex( inode->child[i], offset, fout ) ;
 		}
 	}
-	else if ( type == 1 ) { // Leaf node
+	else if ( type == LEAF ) { // Leaf node
 		LeafNode* lnode = ((LeafNode *) node) ;
 		PLYWriter::writeVertex( fout, lnode->mp ) ; // write out mp (?)
 		lnode->index = offset;
 		offset++;
 	}
-	else if ( type == 2 ) { // Pseudo leaf node
+	else if ( type == PSEUDOLEAF ) { // Pseudo leaf node
 		PseudoLeafNode* pnode = ((PseudoLeafNode *) node) ;
 		PLYWriter::writeVertex( fout, pnode->mp ) ; // write out mp
 		pnode->index = offset;
@@ -609,9 +609,9 @@ void Octree::faceProcContour ( OctreeNode* node[2], int dir, FILE* fout )
 		return ;
 	}
 
-	int type[2] = { node[0]->getType(), node[1]->getType() } ;
+	NodeType type[2] = { node[0]->getType(), node[1]->getType() } ;
 
-	if ( type[0] == 0 || type[1] == 0 ) { // both nodes internal
+	if ( type[0] == INTERNAL || type[1] == INTERNAL ) { // both nodes internal
 		// 4 face calls
 		OctreeNode* fcd[2] ;
 		for ( int i = 0 ; i < 4 ; i ++ ) {
@@ -657,9 +657,9 @@ void Octree::edgeProcContour ( OctreeNode* node[4], int dir, FILE* fout )
 		return ;
 
 
-	int type[4] = { node[0]->getType(), node[1]->getType(), node[2]->getType(), node[3]->getType() } ;
+	NodeType type[4] = { node[0]->getType(), node[1]->getType(), node[2]->getType(), node[3]->getType() } ;
 
-	if ( type[0] > 0 && type[1] > 0 && type[2] > 0 && type[3] > 0 ) {
+	if ( type[0] != INTERNAL && type[1] != INTERNAL  && type[2] != INTERNAL && type[3] != INTERNAL ) {
 		processEdgeWrite( node, dir, fout ) ; // a quad/traingle is output?
 	}
 	else {
@@ -690,7 +690,7 @@ void Octree::processEdgeWrite ( OctreeNode* node[4], int dir, FILE* fout )  {
 	int ind[4], sc[4], flip[4] = {0,0,0,0} ;
 	int flip2;
 	for ( int i = 0 ; i < 4 ; i ++ ) {
-		if ( node[i]->getType() == 1 ) {
+		if ( node[i]->getType() == LEAF ) {
 			LeafNode* lnode = ((LeafNode *) node[i]) ;
 
 			int ed = processEdgeMask[dir][i] ;

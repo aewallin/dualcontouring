@@ -45,11 +45,15 @@
 //#define TESS_UNIFORM
 //#define TESS_NONE
 
+enum NodeType { INTERNAL, LEAF, PSEUDOLEAF };
+
 /* Tree nodes */
 class OctreeNode {
 public:
     OctreeNode(){};
-    virtual int getType() = 0; // 0== InternalNode, 1== LeafNode, 2==PseudoLeafNode
+    virtual NodeType getType() = 0; // 0== InternalNode, 1== LeafNode, 2==PseudoLeafNode
+
+    //virtual int getType() = 0; // 0== InternalNode, 1== LeafNode, 2==PseudoLeafNode
 
 };
 
@@ -164,7 +168,7 @@ public:
 		}
 	};
 
-	int getType ( ) { return 1 ; };
+	NodeType getType ( ) { return LEAF ; };
 	int getSign ( int index ) { return (( signs >> index ) & 1 ); };
 };
 
@@ -222,7 +226,7 @@ public:
 	};
 	
 	// Get type
-	int getType ( ) { return 2 ; };
+	NodeType getType ( ) { return PSEUDOLEAF ; };
 
 	// Get sign
 	int getSign ( int index ) { return (( signs >> index ) & 1 ); };
@@ -236,7 +240,7 @@ public:
 			child[i] = NULL ;
 	};
 
-	int getType ( ) { return 0; };
+	NodeType getType ( ) { return INTERNAL; };
 };
 
 /* Global variables */

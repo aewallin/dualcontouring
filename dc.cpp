@@ -22,7 +22,6 @@
 
 #include <math.h>
 #include <iostream>
-//#define LONG _int64
 
 //#define ALLOW_INTERSECTION
 
