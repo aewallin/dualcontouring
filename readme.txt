@@ -5,6 +5,11 @@ $ cmake ..
 $ make 
 $ ./dualcontour ../mechanic.dcf test.ply
 
+Options:
+--simplify 0.01  (octree simplification)
+--nointer        (intersection-free algorithm)
+--test           (run intersection tests after contouring)
+
 This produces a test.ply file that can be viewed with meshlab.
 
 original readme:
