@@ -55,30 +55,66 @@ public:
     virtual NodeType getType() = 0; // 0== InternalNode, 1== LeafNode, 2==PseudoLeafNode
 };
 
+class InternalNode : public OctreeNode {
+public: // no signs, height, len, or QEF stored for internal node
+	OctreeNode * child[8] ;
+	InternalNode ()  {
+		for ( int i = 0 ; i < 8 ; i ++ )
+			child[i] = NULL ;
+	};
+	~InternalNode() {
+		for ( int i = 0 ; i < 8 ; i ++ ) {
+			if (child[i] != NULL) {
+				delete child[i];
+			}
+		}
+	}
+	NodeType getType ( ) { return INTERNAL; };
+};
 
-class LeafNode : public OctreeNode {
-private:
-    unsigned char signs; // distance-field signs at each corner of cube
+class QEFMixin {
+protected:
+	unsigned char signs;
 public:
-    char height; // depth
+	char height; // depth
 	float mp[3]; // this is the minimizer point of the QEF
-	int index; // ?
+	int index; // vertex index in PLY file
 	float ata[6], atb[3], btb; // QEF data
-
-	// Construction
-	LeafNode( int ht, unsigned char sg, float coord[3] )  {
-		height = ht ;
-		signs = sg ;
-
+	
+	void clearQEF() {
 		for ( int i = 0 ; i < 6 ; i ++ )
 			ata[i] = 0 ;
 
 		for ( int i = 0 ; i < 3 ; i ++ ) {
-			mp[i] = coord[i] ;
+			mp[i] = 0;
 			atb[i] = 0 ;
 		}
 
 		btb = 0 ;
+	}
+	void setQEF(float ata1[6], float atb1[3], float btb1, float mp1[3] ) {
+		for ( int i = 0 ; i < 6 ; i ++ )
+			ata[i] = ata1[i] ;
+
+		for ( int i = 0 ; i < 3 ; i ++ ) {
+			mp[i] = mp1[i] ;
+			atb[i] = atb1[i] ;
+		}
+		btb = btb1 ;
+	}
+	int getSign ( int index ) { return (( signs >> index ) & 1 ); };
+};
+
+class LeafNode : public OctreeNode, public QEFMixin {
+
+public:
+	~LeafNode() {};
+	
+	// Construction
+	LeafNode( int ht, unsigned char sg, float coord[3] )  {
+		height = ht ;
+		signs = sg ;
+		clearQEF();
 		index = -1 ;
 	};
 
@@ -93,16 +129,8 @@ public:
 		height = ht;
 		signs = sg;
 		index = -1;
-
-		for ( int i = 0 ; i < 6 ; i ++ )
-			ata[i] = 0 ;
-
-		for ( int i = 0 ; i < 3 ; i ++ ) {
-			mp[i] = 0 ;
-			atb[i] = 0 ;
-		}
-		btb = 0 ;
-
+		clearQEF();
+		
 		float pt[3] ={0,0,0} ;
 		if ( numint > 0 ) {
 			for ( int i = 0 ; i < numint ; i ++ ) {
@@ -169,32 +197,28 @@ public:
 	};
 
 	NodeType getType ( ) { return LEAF ; };
-	int getSign ( int index ) { return (( signs >> index ) & 1 ); };
 };
 
-// leaf, but not at max depth (?)
-class PseudoLeafNode : public OctreeNode {
-private:
-	unsigned char signs;
+// leaf, but not at max depth
+// created by merging child-nodes
+class PseudoLeafNode : public OctreeNode, public QEFMixin {
 public:
-	char height ;
-	float mp[3]; // Minimizer
-	int index;
-	float ata[6], atb[3], btb ; // QEF
 	OctreeNode * child[8] ; // Children 
-
+	
+	~PseudoLeafNode() {
+		for ( int i = 0 ; i < 8 ; i ++ ) {
+			if (child[i] != NULL)
+				delete child[i];
+		}
+	}
+	
 	// Construction, without QEF
 	PseudoLeafNode ( int ht, unsigned char sg, float coord[3] )  {
-		height = ht ;
-		signs = sg ;
-		for ( int i = 0 ; i < 6 ; i ++ )
-			ata[i] = 0 ;
-
-		for ( int i = 0 ; i < 3 ; i ++ ) {
+		height = ht;
+		signs = sg;
+		clearQEF();
+		for ( int i = 0 ; i < 3 ; i ++ ) 
 			mp[i] = coord[i] ;
-			atb[i] = 0 ;
-		}
-		btb = 0 ;
 
 		for ( int i = 0 ; i < 8 ; i ++ ) 
 			child[i] = NULL ;
@@ -206,36 +230,15 @@ public:
 	PseudoLeafNode ( int ht, unsigned char sg, float ata1[6], float atb1[3], float btb1, float mp1[3] )  {
 		height = ht ;
 		signs = sg ;
-		for ( int i = 0 ; i < 6 ; i ++ )
-			ata[i] = ata1[i] ;
-
-		for ( int i = 0 ; i < 3 ; i ++ ) {
-			mp[i] = mp1[i] ;
-			atb[i] = atb1[i] ;
-		}
-		btb = btb1 ;
+		setQEF(ata1, atb1, btb1, mp1);
 		for ( int i = 0 ; i < 8 ; i ++ )
 			child[i] = NULL ;
 
 		index = -1 ;
 	};
-	
-	// Get type
 	NodeType getType ( ) { return PSEUDOLEAF ; };
-
-	// Get sign
-	int getSign ( int index ) { return (( signs >> index ) & 1 ); };
 };
 
-class InternalNode : public OctreeNode {
-public: // no signs or QEF stored for internal node
-	OctreeNode * child[8] ;
-	InternalNode ()  {
-		for ( int i = 0 ; i < 8 ; i ++ )
-			child[i] = NULL ;
-	};
-	NodeType getType ( ) { return INTERNAL; };
-};
 
 /* Global variables */
 const int edgevmap[12][2] = {{0,4},{1,5},{2,6},{3,7},{0,2},{1,3},{4,6},{5,7},{0,1},{2,3},{4,5},{6,7}};
@@ -249,6 +252,7 @@ const int faceMap[6][4] = {{4, 8, 5, 9}, {6, 10, 7, 11},{0, 8, 1, 10},{2, 9, 3, 
 
 // used in cellProcContour(). 
 // between 8 child-nodes there are 12 faces.
+// first two numners are child-pairs, to be processed by faceProcContour()
 // the last number is "dir" ?
 const int cellProcFaceMask[12][3] = {{0,4,0},{1,5,0},{2,6,0},{3,7,0},{0,2,1},{4,6,1},{1,3,1},{5,7,1},{0,1,2},{2,3,2},{4,5,2},{6,7,2}} ;
 
@@ -295,8 +299,9 @@ public:
 	OctreeNode* root ;
 	int dimen; 	   // Length of grid
 	int maxDepth;
-	int hasQEF;    // Has QEF? why not bool? used in simplify()
-	int faceVerts, edgeVerts, actualTris ;
+	int hasQEF;    // used in simplify(), can be removed
+	int faceVerts, edgeVerts;
+	int actualTris ; // number of triangles produced by cellProcContour()
 	int founds, news ;
 public:
 	Octree ( char* fname , double threshold) ;

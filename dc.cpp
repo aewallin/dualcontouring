@@ -43,6 +43,8 @@ int main( int args, char* argv[] )
 		("usage","dualcontour input.dcf output.ply [--simplify 0.01]")
 		("help", "produce help message")
 		("simplify", po::value<float>(), "set simplify threshold (float)")
+		("nointer", "use intersection-free algorithm")
+		("test", "run intersection test")
 	;
 
 	po::variables_map vm;
@@ -65,24 +67,22 @@ int main( int args, char* argv[] )
 	std::cout << " input file: " << argv[1] << "\n";
 	Octree* mytree = new Octree( argv[1], simplify_threshold ) ;
 
-	// Octree simplification; feel free to change the simplification threshold.
-	// mytree->simplify( .001f ) ;
-
-#ifdef ALLOW_INTERSECTION
-
-	// Dual contouring [Ju et al. 2002]
-	mytree->genContour( argv[2] ) ;
-
-	// Pairwise intersection test - may take a while
-	// int num = Intersection::testIntersection( argv[2], argv[3] ) ;
-	// printf("%d intersections found!\n", num) ;
-
-#else
-	std::cout << " Intersection-free algorithm! \n";
-
-	// Intersection-free dual contouring [Ju et al. 2006]
-	mytree->genContourNoInter2( argv[2] ) ;
-
-#endif
+	if (vm.count("nointer")) {
+		std::cout << " Intersection-free algorithm! \n";
+		// Intersection-free dual contouring [Ju et al. 2006]
+		mytree->genContourNoInter2( argv[2] ) ;
+	} else {
+		std::cout << " Original algorithm! \n";
+		// Dual contouring [Ju et al. 2002]
+		mytree->genContour( argv[2] ) ;
+	}
+	
+	
+	if (vm.count("test")) {
+		printf("Running intersection test... \n") ;
+		// Pairwise intersection test - may take a while
+		int num = Intersection::testIntersection( argv[2], argv[3] ) ;
+		printf("%d intersections found!\n", num) ;
+	}
 }
 
