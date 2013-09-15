@@ -24,7 +24,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
 #include <iostream>
+#include <cassert>
 
 #include "octree.hpp"
 #include "PLYWriter.hpp"
@@ -114,7 +116,7 @@ OctreeNode* Octree::simplify( OctreeNode* node, int st[3], int len, float thresh
 					midsign = lnode->getSign( 7 - i ) ;
 					signs[i] = lnode->getSign( i ) ;
 				}
-				else {
+				else { // pseudoleaf
 					PseudoLeafNode* pnode = (PseudoLeafNode *) inode->child[i] ;
 					ht = pnode->height ;
 
@@ -134,9 +136,8 @@ OctreeNode* Octree::simplify( OctreeNode* node, int st[3], int len, float thresh
 			}
 		} // all QEFs summed 
 
-		if ( simple ) { // all children INTERNAL (?)
-			// Ok, let's collapse
-			if ( ec == 0 ) {
+		if ( simple ) { // one or more child INTERNAL (?)
+			if ( ec == 0 ) { // no QEFs found/summed above
 				delete node ;
 				return NULL ;
 			}
@@ -146,7 +147,7 @@ OctreeNode* Octree::simplify( OctreeNode* node, int st[3], int len, float thresh
 				pt[2] = pt[2] / ec ;
 				if ( pt[0] < st[0] || pt[1] < st[1] || pt[2] < st[2] ||
 					pt[0] > st[0] + len || pt[1] > st[1] + len || pt[2] > st[2] + len )
-				{ // pt outside node cube (?)
+				{ // pt outside node cube
 					//printf("Out! %f %f %f, Box: (%d %d %d) Len: %d ec: %d\n", pt[0], pt[1], pt[2], st[0],st[1],st[2],len,ec) ;
 				}
 
@@ -162,9 +163,9 @@ OctreeNode* Octree::simplify( OctreeNode* node, int st[3], int len, float thresh
 					}
 				}
 
-				// Solve
+				// Solve QEF for parent node
 				float mat[10];
-				BoundingBoxf * box = new BoundingBoxf();
+				BoundingBoxf* box = new BoundingBoxf();
 				box->begin.x = (float) st[0] ;
 				box->begin.y = (float) st[1] ;
 				box->begin.z = (float) st[2] ;
@@ -176,14 +177,14 @@ OctreeNode* Octree::simplify( OctreeNode* node, int st[3], int len, float thresh
 				float mp[3] = { 0, 0, 0 } ;
 				float error = calcPoint( ata, atb, btb, pt, mp, box, mat ) ;
 #ifdef CLAMP
-				if ( mp[0] < st[0] || mp[1] < st[1] || mp[2] < st[2] ||
+				if ( mp[0] < st[0] || mp[1] < st[1] || mp[2] < st[2] || // mp is outside boudning-box
 					mp[0] > st[0] + len || mp[1] > st[1] + len || mp[2] > st[2] + len ) {
 					mp[0] = pt[0] ;
 					mp[1] = pt[1] ;
 					mp[2] = pt[2] ;
 				}
 #endif
-				if ( error <= thresh ) {
+				if ( error <= thresh ) { // if parent QEF solution is good enough
 					PseudoLeafNode* pnode = new PseudoLeafNode( ht+1, sg, ata, atb, btb, mp ) ;
 					for ( int i = 0 ; i < 8 ; i ++ )
 						pnode->child[i] = inode->child[i] ; // why do we retain these?
@@ -191,17 +192,15 @@ OctreeNode* Octree::simplify( OctreeNode* node, int st[3], int len, float thresh
 					delete inode ;
 					return pnode ;
 				}
-				else {
+				else { // QEF solution not good enough
 					return node ;
 				}
 			}
 			
-		}
-		else {
+		} else { // simple == 0
 			return node ;
 		}
-	}
-	else {
+	} else { // type != INTERNAL
 		return node ;
 	}
 }
@@ -375,9 +374,17 @@ void Octree::readDCF( char* fname ) {
 	// Recursive reader
 	int st[3] = {0, 0, 0} ;
 	this->root = readDCF( fin, st, dimen, maxDepth ) ;
+
+	// optional octree simplification
 	if (simplify_threshold > 0 ) {
 		std::cout << "Simplifying with threshold " << simplify_threshold << "\n";
+		int nodecount[3];
+		countNodes( nodecount );
+		std::cout << " Before simplify: " << nodecount[0] << " " << nodecount[1] << " " << nodecount[2] << "\n";
 		simplify( simplify_threshold );
+		countNodes( nodecount );
+		std::cout << " After simplify: " << nodecount[0] << " " << nodecount[1] << " " << nodecount[2] << "\n";
+
 	}
 	printf("Done reading.\n") ;	
 	fclose( fin ) ;
@@ -411,6 +418,7 @@ OctreeNode* Octree::readDCF( FILE* fin, int st[3], int len, int height ) {
 	else if ( type == 1 ) { // Empty node, 
 		short sg ;
 		fread( &sg, sizeof( short ), 1, fin ) ; // signs not used??
+		assert( rvalue == NULL );
 		return rvalue ;
 	}
 	

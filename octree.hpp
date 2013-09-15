@@ -305,7 +305,38 @@ public:
 	void genContour ( char* fname ) ;
 	//void genContourNoInter ( char* fname ) ; // not called from main() ?
 	void genContourNoInter2 ( char* fname ) ;
-
+	
+	void countNodes(int result[3]) {
+		for (int i=0;i<3;i++)
+			result[i]=0;
+		countNodes(this->root, result);
+	}
+	
+	void countNodes( OctreeNode* node, int result[3] ) {
+		switch( node->getType() ) {
+			case INTERNAL:
+				result[0]++;
+				InternalNode* inode;
+				inode = (InternalNode*)node;
+				for (int i=0;i<8;i++) {
+					if (inode->child[i]!=NULL)
+						countNodes( inode->child[i], result);
+				}
+				break;
+			case PSEUDOLEAF:
+				result[1]++;
+				PseudoLeafNode* pnode;
+				pnode = (PseudoLeafNode*)node;
+				for (int i=0;i<8;i++) {
+					if (pnode->child[i]!=NULL)
+						countNodes( pnode->child[i], result);
+				}
+				break;
+			case LEAF:
+				result[2]++;
+				break;
+		}
+	}
 private:
 	float simplify_threshold;
 	OctreeNode* simplify( OctreeNode* node, int st[3], int len, float thresh ) ;
