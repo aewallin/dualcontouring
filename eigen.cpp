@@ -29,6 +29,7 @@
 #include <assert.h>
 #define ROTATE(a,i,j,k,l) g=a[i][j];h=a[k][l];a[i][j]=g-s*(h+g*tau);a[k][l]=h+s*(g-h*tau);
 
+// used to select solving method in calcPoint()
 int method = 3;
 
 // for reducing two upper triangular systems of equations into 1
@@ -506,62 +507,56 @@ void descent ( float A[][3], float B[], float guess[], BoundingBoxf *box )
 	store [ 1 ] = guess [ 1 ];
 	store [ 2 ] = guess [ 2 ];
 
-	if ( method == 2 || method == 0 )
-	{
+	if ( method == 2 || method == 0 ) {
 
-	i = 0;
-	r [ 0 ] = B [ 0 ] - ( A [ 0 ] [ 0 ] * guess [ 0 ] + A [ 0 ] [ 1 ] * guess [ 1 ] + A [ 0 ] [ 2 ] * guess [ 2 ] );
-	r [ 1 ] = B [ 1 ] - ( A [ 1 ] [ 0 ] * guess [ 0 ] + A [ 1 ] [ 1 ] * guess [ 1 ] + A [ 1 ] [ 2 ] * guess [ 2 ] );
-	r [ 2 ] = B [ 2 ] - ( A [ 2 ] [ 0 ] * guess [ 0 ] + A [ 2 ] [ 1 ] * guess [ 1 ] + A [ 2 ] [ 2 ] * guess [ 2 ] );
-
-	delta = r [ 0 ] * r [ 0 ] + r [ 1 ] * r [ 1 ] + r [ 2 ] * r [ 2 ];
-	delta0 = delta * TOLERANCE * TOLERANCE;
-
-	while ( i < n && delta > delta0 )
-	{
-		div = r [ 0 ] * ( A [ 0 ] [ 0 ] * r [ 0 ] + A [ 0 ] [ 1 ] * r [ 1 ] + A [ 0 ] [ 2 ] * r [ 2 ] );
-		div += r [ 1 ] * ( A [ 1 ] [ 0 ] * r [ 0 ] + A [ 1 ] [ 1 ] * r [ 1 ] + A [ 1 ] [ 2 ] * r [ 2 ] );
-		div += r [ 2 ] * ( A [ 2 ] [ 0 ] * r [ 0 ] + A [ 2 ] [ 1 ] * r [ 1 ] + A [ 2 ] [ 2 ] * r [ 2 ] );
-
-		if ( fabs ( div ) < 0.0000001f )
-		{
-			break;
-		}
-
-		alpha = delta / div;
-
-		newPoint [ 0 ] = guess [ 0 ] + alpha * r [ 0 ];
-		newPoint [ 1 ] = guess [ 1 ] + alpha * r [ 1 ];
-		newPoint [ 2 ] = guess [ 2 ] + alpha * r [ 2 ];
-
-		guess [ 0 ] = newPoint [ 0 ];
-		guess [ 1 ] = newPoint [ 1 ];
-		guess [ 2 ] = newPoint [ 2 ];
-
+		i = 0;
 		r [ 0 ] = B [ 0 ] - ( A [ 0 ] [ 0 ] * guess [ 0 ] + A [ 0 ] [ 1 ] * guess [ 1 ] + A [ 0 ] [ 2 ] * guess [ 2 ] );
 		r [ 1 ] = B [ 1 ] - ( A [ 1 ] [ 0 ] * guess [ 0 ] + A [ 1 ] [ 1 ] * guess [ 1 ] + A [ 1 ] [ 2 ] * guess [ 2 ] );
 		r [ 2 ] = B [ 2 ] - ( A [ 2 ] [ 0 ] * guess [ 0 ] + A [ 2 ] [ 1 ] * guess [ 1 ] + A [ 2 ] [ 2 ] * guess [ 2 ] );
 
 		delta = r [ 0 ] * r [ 0 ] + r [ 1 ] * r [ 1 ] + r [ 2 ] * r [ 2 ];
+		delta0 = delta * TOLERANCE * TOLERANCE;
 
-		i++;
-	}
+		while ( i < n && delta > delta0 ) {
+			div = r [ 0 ] * ( A [ 0 ] [ 0 ] * r [ 0 ] + A [ 0 ] [ 1 ] * r [ 1 ] + A [ 0 ] [ 2 ] * r [ 2 ] );
+			div += r [ 1 ] * ( A [ 1 ] [ 0 ] * r [ 0 ] + A [ 1 ] [ 1 ] * r [ 1 ] + A [ 1 ] [ 2 ] * r [ 2 ] );
+			div += r [ 2 ] * ( A [ 2 ] [ 0 ] * r [ 0 ] + A [ 2 ] [ 1 ] * r [ 1 ] + A [ 2 ] [ 2 ] * r [ 2 ] );
 
-	if ( guess [ 0 ] >= box->begin.x && guess [ 0 ] <= box->end.x && 
-		guess [ 1 ] >= box->begin.y && guess [ 1 ] <= box->end.y &&
-		guess [ 2 ] >= box->begin.z && guess [ 2 ] <= box->end.z )
-	{
-		return;
-	}
-	}
+			if ( fabs ( div ) < 0.0000001f )
+				break;
 
-	if ( method == 0 || method == 1 )
-	{
-		c = A [ 0 ] [ 0 ] + A [ 1 ] [ 1 ] + A [ 2 ] [ 2 ];
-		if ( c == 0 )
+			alpha = delta / div;
+
+			newPoint [ 0 ] = guess [ 0 ] + alpha * r [ 0 ];
+			newPoint [ 1 ] = guess [ 1 ] + alpha * r [ 1 ];
+			newPoint [ 2 ] = guess [ 2 ] + alpha * r [ 2 ];
+
+			guess [ 0 ] = newPoint [ 0 ];
+			guess [ 1 ] = newPoint [ 1 ];
+			guess [ 2 ] = newPoint [ 2 ];
+
+			r [ 0 ] = B [ 0 ] - ( A [ 0 ] [ 0 ] * guess [ 0 ] + A [ 0 ] [ 1 ] * guess [ 1 ] + A [ 0 ] [ 2 ] * guess [ 2 ] );
+			r [ 1 ] = B [ 1 ] - ( A [ 1 ] [ 0 ] * guess [ 0 ] + A [ 1 ] [ 1 ] * guess [ 1 ] + A [ 1 ] [ 2 ] * guess [ 2 ] );
+			r [ 2 ] = B [ 2 ] - ( A [ 2 ] [ 0 ] * guess [ 0 ] + A [ 2 ] [ 1 ] * guess [ 1 ] + A [ 2 ] [ 2 ] * guess [ 2 ] );
+
+			delta = r [ 0 ] * r [ 0 ] + r [ 1 ] * r [ 1 ] + r [ 2 ] * r [ 2 ];
+
+			i++;
+		}
+
+		if ( guess [ 0 ] >= box->begin.x && guess [ 0 ] <= box->end.x && 
+			guess [ 1 ] >= box->begin.y && guess [ 1 ] <= box->end.y &&
+			guess [ 2 ] >= box->begin.z && guess [ 2 ] <= box->end.z )
 		{
 			return;
 		}
+	} // method 2 or 0
+
+	if ( method == 0 || method == 1 ) {
+		c = A [ 0 ] [ 0 ] + A [ 1 ] [ 1 ] + A [ 2 ] [ 2 ];
+		if ( c == 0 )
+			return;
+
 		c = ( 0.75f / c );
 
 		guess [ 0 ] = store [ 0 ];
@@ -572,8 +567,7 @@ void descent ( float A[][3], float B[], float guess[], BoundingBoxf *box )
 		r [ 1 ] = B [ 1 ] - ( A [ 1 ] [ 0 ] * guess [ 0 ] + A [ 1 ] [ 1 ] * guess [ 1 ] + A [ 1 ] [ 2 ] * guess [ 2 ] );
 		r [ 2 ] = B [ 2 ] - ( A [ 2 ] [ 0 ] * guess [ 0 ] + A [ 2 ] [ 1 ] * guess [ 1 ] + A [ 2 ] [ 2 ] * guess [ 2 ] );
 
-		for ( i = 0; i < n; i++ )
-		{
+		for ( i = 0; i < n; i++ ) {
 			guess [ 0 ] = guess [ 0 ] + c * r [ 0 ];
 			guess [ 1 ] = guess [ 1 ] + c * r [ 1 ];
 			guess [ 2 ] = guess [ 2 ] + c * r [ 2 ];
@@ -617,9 +611,9 @@ float calcPoint ( float halfA[], float b[], float btb, float midpoint[], float r
 	a [ 2 ] [ 1 ] = halfA [ 4 ];
 	a [ 2 ] [ 2 ] = halfA [ 5 ];
 
-	switch ( method )
+	switch ( method ) // by default method = 3
 	{
-	case 0:
+	case 0: 
 	case 1:
 	case 2:
 		rvalue [ 0 ] = midpoint [ 0 ];
@@ -630,13 +624,10 @@ float calcPoint ( float halfA[], float b[], float btb, float midpoint[], float r
 		return calcError ( a, b, btb, rvalue );
 		break;
 	case 3:
-		matInverse ( a, midpoint, inv, w, u );
-
-
+		matInverse( a, midpoint, inv, w, u );
 		newB [ 0 ] = b [ 0 ] - a [ 0 ] [ 0 ] * midpoint [ 0 ] - a [ 0 ] [ 1 ] * midpoint [ 1 ] - a [ 0 ] [ 2 ] * midpoint [ 2 ];
 		newB [ 1 ] = b [ 1 ] - a [ 1 ] [ 0 ] * midpoint [ 0 ] - a [ 1 ] [ 1 ] * midpoint [ 1 ] - a [ 1 ] [ 2 ] * midpoint [ 2 ];
 		newB [ 2 ] = b [ 2 ] - a [ 2 ] [ 0 ] * midpoint [ 0 ] - a [ 2 ] [ 1 ] * midpoint [ 1 ] - a [ 2 ] [ 2 ] * midpoint [ 2 ];
-
 		rvalue [ 0 ] = inv [ 0 ] [ 0 ] * newB [ 0 ] + inv [ 1 ] [ 0 ] * newB [ 1 ] + inv [ 2 ] [ 0 ] * newB [ 2 ] + midpoint [ 0 ];
 		rvalue [ 1 ] = inv [ 0 ] [ 1 ] * newB [ 0 ] + inv [ 1 ] [ 1 ] * newB [ 1 ] + inv [ 2 ] [ 1 ] * newB [ 2 ] + midpoint [ 1 ];
 		rvalue [ 2 ] = inv [ 0 ] [ 2 ] * newB [ 0 ] + inv [ 1 ] [ 2 ] * newB [ 1 ] + inv [ 2 ] [ 2 ] * newB [ 2 ] + midpoint [ 2 ];
@@ -768,7 +759,7 @@ float calcPoint ( float halfA[], float b[], float btb, float midpoint[], float r
 		return ret;
 
 		break;
-	case 5:
+	case 5: // do nothing, return midpoint
 		rvalue [ 0 ] = midpoint [ 0 ];
 		rvalue [ 1 ] = midpoint [ 1 ];
 		rvalue [ 2 ] = midpoint [ 2 ];

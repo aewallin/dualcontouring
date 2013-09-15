@@ -63,8 +63,7 @@ public:
     char height; // depth
 	float mp[3]; // this is the minimizer point of the QEF
 	int index; // ?
-	// QEF data
-	float ata[6], atb[3], btb ;
+	float ata[6], atb[3], btb; // QEF data
 
 	// Construction
 	LeafNode( int ht, unsigned char sg, float coord[3] )  {
@@ -86,7 +85,7 @@ public:
 	// Construction by QEF
 	// each edge of the cube can have an intersection point
 	// so we can give up to 12 intersection points with 12 normal-vectors
-	// specify numner of intersections in numint
+	// specify number of intersections in numint
 	//
 	// st is the minimum bounding-box point
 	// st + (1,1,1)*len is the maximum bounding-box point
@@ -144,7 +143,11 @@ public:
 			
 			// eigen.hpp
 			// calculate minimizer point, and return error
+			// QEF: ata, atb, btb
+			// pt is the average of the intersection points
 			// mp is the result
+			// box is a bounding-box for this node
+			// mat is storage for calcPoint() ?
 			float error = calcPoint( ata, atb, btb, pt, mp, box, mat ) ;
 
 #ifdef CLAMP // Clamp all minimizers to be inside the cell
@@ -175,15 +178,10 @@ private:
 	unsigned char signs;
 public:
 	char height ;
-
 	float mp[3]; // Minimizer
 	int index;
-
-	// QEF
-	float ata[6], atb[3], btb ;
-
-	// Children 
-	OctreeNode * child[8] ;
+	float ata[6], atb[3], btb ; // QEF
+	OctreeNode * child[8] ; // Children 
 
 	// Construction, without QEF
 	PseudoLeafNode ( int ht, unsigned char sg, float coord[3] )  {
@@ -295,9 +293,9 @@ const int dirEdge[3][4] = {
 class Octree {
 public:
 	OctreeNode* root ;
-	int dimen; 	/// Length of grid
+	int dimen; 	   // Length of grid
 	int maxDepth;
-	int hasQEF;  // Has QEF? why not bool? used in simplify()
+	int hasQEF;    // Has QEF? why not bool? used in simplify()
 	int faceVerts, edgeVerts, actualTris ;
 	int founds, news ;
 public:

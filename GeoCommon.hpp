@@ -21,8 +21,8 @@
 #ifndef GEOCOMMON_H
 #define GEOCOMMON_H
 
-#define UCHAR unsigned char
-#define USHORT unsigned short
+// #define UCHAR unsigned char
+// #define USHORT unsigned short
 
 #define USE_MINIMIZER
 
