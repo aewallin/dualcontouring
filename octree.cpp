@@ -35,12 +35,13 @@ Octree::Octree( char* fname,  double threshold )
 {
 	simplify_threshold = threshold;
 	// Recognize file format
+	/*
 	if ( strstr( fname, ".sog" ) != NULL || strstr( fname, ".SOG" ) != NULL ) {
 		printf("Reading SOG file format.\n") ;
 		this->hasQEF = 0 ;
 		readSOG( fname ) ;
-	} 
-	else if ( strstr( fname, ".dcf" ) != NULL || strstr( fname, ".DCF" ) != NULL ) {
+	}*/
+	if ( strstr( fname, ".dcf" ) != NULL || strstr( fname, ".DCF" ) != NULL ) {
 		printf("Reading DCF file format.\n") ;
 		this->hasQEF = 1 ;
 		readDCF( fname ) ;
@@ -205,146 +206,6 @@ OctreeNode* Octree::simplify( OctreeNode* node, int st[3], int len, float thresh
 }
 
 
-void Octree::readSOG( char* fname ) {
-	FILE* fin = fopen( fname, "rb" ) ;
-	if ( fin == NULL ) {
-		printf("Can not open file %s.\n", fname) ;
-	}
-	
-	// Process header
-	char header[]="SOG.Format 1.0";
-	float origin[3];
-	float range;
-
-	fread( header, sizeof( char ), strlen(header) + 1, fin );
-	if ( strcmp(header, "SOG.Format 1.0") )
-	{
-		printf("Incorrect file format: %s \n", fname) ;
-		exit(1);
-	}
-	fread( origin, sizeof( float ), 3, fin );
-	fread( &range, sizeof( float ), 1, fin ) ;
-	printf("Origin: (%f, %f, %f), Range: %f.\n", origin[0], origin[1], origin[2], range);
-
-	int nlen = 128 - 4 * 4 - strlen(header) - 1 ;
-	char* header2 = new char[ nlen ];
-	fread( header2, sizeof( char ), nlen, fin ) ;
-
-
-	fread( &(this->dimen), sizeof( int ), 1, fin ) ;
-	this->maxDepth = 0 ;
-	int temp = 1 ;
-	while ( temp < this->dimen )
-	{
-		maxDepth ++ ;
-		temp <<= 1 ;
-	}
-	printf("Dimensions: %d Depth: %d\n", this->dimen, maxDepth ) ;
-
-	// Recursive reader
-	int st[3]={0,0,0};
-	this->root = readSOG( fin, st, dimen, maxDepth, origin, range ) ;
-	
-	printf("Done reading.\n") ;	
-	fclose( fin ) ;
-}
-
-OctreeNode* Octree::readSOG( FILE* fin, int st[3], int len, int ht, float origin[3], float range )
-{
-	OctreeNode* rvalue = NULL ;
-	int i ;
-
-	// Get type
-	char type ;
-	fread( &type, sizeof( char ), 1, fin ) ;
-
-	if ( type == 0 )
-	{
-		// Internal node
-		rvalue = new InternalNode( ) ;
-
-		int nlen = len / 2 ;
-		int nst[3] ;
-
-		for ( i = 0 ; i < 8 ; i ++ )
-		{
-			nst[0] = st[0] + vertMap[i][0] * nlen ;
-			nst[1] = st[1] + vertMap[i][1] * nlen ;
-			nst[2] = st[2] + vertMap[i][2] * nlen ;
-
-			((InternalNode *)rvalue)->child[i] = readSOG( fin, nst, nlen, ht - 1, origin, range ) ;
-		}
-	}
-	else if ( type == 1 )
-	{
-		// Empty node
-		char sg ;
-		fread( &sg, sizeof( char ), 1, fin ) ;
-		sg = ~sg;
-	}
-	else if ( type == 2 )
-	{
-		// Leaf node
-		unsigned char sg ;
-		fread( &sg, sizeof( unsigned char ), 1, fin ) ;
-		sg = ~sg;
-		
-		float coord[3] ;
-		fread( coord, sizeof( float ), 3, fin ) ;
-
-#ifdef SOG_RELATIVE
-		coord[0] = st[0] + len * coord[0] ;
-		coord[1] = st[1] + len * coord[1] ;
-		coord[2] = st[2] + len * coord[2] ;
-#else
-		for ( i = 0 ; i < 3 ; i ++ )
-		{
-			coord[ i ] = ( coord[ i ] - origin[ i ] ) * dimen / range ;
-		}
-#endif
-
-		rvalue = new LeafNode( ht, sg, coord ) ;
-	}
-	else if ( type == 3 )
-	{
-		// Pseudo-leaf node
-		unsigned char sg ;
-		fread( &sg, sizeof( unsigned char ), 1, fin ) ;
-		sg = ~sg;
-		
-		float coord[3] ;
-		fread( coord, sizeof( float ), 3, fin ) ;
-		
-#ifdef SOG_RELATIVE
-		coord[0] = st[0] + len * coord[0] ;
-		coord[1] = st[1] + len * coord[1] ;
-		coord[2] = st[2] + len * coord[2] ;
-#else
-		for ( i = 0 ; i < 3 ; i ++ )
-		{
-			coord[ i ] = ( coord[ i ] - origin[ i ] ) * dimen / range ;
-		}
-#endif
-		
-		rvalue = new PseudoLeafNode( ht, sg, coord ) ;
-		
-		int nlen = len / 2 ;
-		int nst[3] ;
-
-		for ( int k = 0 ; i < 8 ; i ++ )
-		{
-			nst[0] = st[0] + vertMap[i][0] * nlen ;
-			nst[1] = st[1] + vertMap[i][1] * nlen ;
-			nst[2] = st[2] + vertMap[i][2] * nlen ;
-			((PseudoLeafNode *)rvalue)->child[i] = readSOG( fin, nst, nlen, ht - 1, origin, range ) ;
-		}
-	}
-	else
-	{
-		printf("Wrong! Type: %d\n", type);
-	}
-	return rvalue ;
-}
 
 void Octree::readDCF( char* fname ) {
 	FILE* fin = fopen( fname, "rb" ) ;
@@ -368,7 +229,7 @@ void Octree::readDCF( char* fname ) {
 		maxDepth ++ ;
 		temp <<= 1 ;
 	}
-	printf("Dimensions: %d Depth: %d\n", this->dimen, maxDepth ) ;
+	printf("dimen: %d maxDepth: %d\n", this->dimen, maxDepth ) ;
 
 	// Recursive reader
 	int st[3] = {0, 0, 0} ;
@@ -377,13 +238,13 @@ void Octree::readDCF( char* fname ) {
 	// optional octree simplification
 	if (simplify_threshold > 0 ) {
 		std::cout << "Simplifying with threshold " << simplify_threshold << "\n";
-		int nodecount[3];
-		countNodes( nodecount );
-		std::cout << " Before simplify: Internal " << nodecount[0] << "\tPseudo " << nodecount[1] << "\tLeaf " << nodecount[2] << "\n";
+		int nodecount1[3],nodecount2[3];
+		countNodes( nodecount1 );
+		std::cout << " Before simplify: Internal " << nodecount1[0] << "\tPseudo " << nodecount1[1] << "\tLeaf " << nodecount1[2] << "\n";
 		simplify( simplify_threshold );
-		countNodes( nodecount );
-		std::cout << "  After simplify: Internal " << nodecount[0] << "\tPseudo " << nodecount[1] << "\tLeaf " << nodecount[2] << "\n";
-
+		countNodes( nodecount2 );
+		std::cout << "  After simplify: Internal " << nodecount2[0] << "\tPseudo " << nodecount2[1] << "\tLeaf " << nodecount2[2] << "\n";
+		std::cout << "  Nodecount I+P+L reduced from " << nodecount1[0]+nodecount1[1]+nodecount1[2] << " to " << nodecount2[0]+nodecount2[1]+nodecount2[2] << "\n";
 	}
 	printf("Done reading.\n") ;	
 	fclose( fin ) ;
@@ -393,12 +254,14 @@ void Octree::readDCF( char* fname ) {
 // st cube corner (x,y,z)
 // len cube side length
 // ht node depth (root has 0, leaf has maxDepth)
+//
+// recursive reader
 OctreeNode* Octree::readDCF( FILE* fin, int st[3], int len, int height ) {
 	OctreeNode* rvalue = NULL ;
 
 	int type ;
 	fread( &type, sizeof( int ), 1, fin ) ;  // Get type
-	// printf("%d %d (%02d, %02d, %02d) NodeType: %d\n", ht, len, st[0], st[1], st[2], type);
+	//printf("%d %d (%02d, %02d, %02d) NodeType: %d\n", height, len, st[0], st[1], st[2], type);
 
 	if ( type == 0 ) { // Internal node
 		rvalue = new InternalNode() ;
@@ -433,14 +296,15 @@ OctreeNode* Octree::readDCF( FILE* fin, int st[3], int len, int height ) {
 		// intersections and normals
 		float inters[12][3], norms[12][3] ;
 		int numinters = 0;
-		for ( int i = 0 ; i < 12 ; i ++ ) { // potentially there are 12 intersections
+		for ( int i = 0 ; i < 12 ; i ++ ) { // potentially there are 12 intersections, one for each edge of the cube
 			int num ;
 			fread( &num, sizeof( int ), 1, fin ) ;
 			if ( num > 0 ) {
 				for ( int j = 0 ; j < num ; j ++ ) {
 					float off ;
 					fread( &off, sizeof( float ), 1, fin ) ;
-					fread( norms[numinters], sizeof( float ), 3, fin ) ;
+					fread( norms[numinters], sizeof( float ), 3, fin ) ; // normals
+					
 					int dir = i / 4 ;
 					int base = edgevmap[ i ][ 0 ] ;
 					inters[numinters][0] = st[0] + vertMap[base][0] * len ;
@@ -460,7 +324,7 @@ OctreeNode* Octree::readDCF( FILE* fin, int st[3], int len, int height ) {
 		return rvalue ;
 	}
 	else {
-		printf("Wrong! Type: %d\n", type);
+		printf("Wrong! Node Type: %d\n", type);
 		exit(-1);
 	}
 }
@@ -531,7 +395,8 @@ void Octree::genContourNoInter2( char* fname ) {
 }
 
 
-// original algorithm, may produce intersecting polygons?
+// original algorithm
+// may produce intersecting polygons?
 void Octree::genContour( char* fname ) {
 	int numTris = 0 ;
 	int numVertices = 0 ;

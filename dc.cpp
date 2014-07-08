@@ -40,7 +40,6 @@ int main( int args, char* argv[] )
 	// Declare the supported options.
 	po::options_description desc("Allowed options");
 	desc.add_options()
-		("usage","dualcontour input.dcf output.ply [--simplify 0.01]")
 		("help", "produce help message")
 		("simplify", po::value<float>(), "set simplify threshold (float)")
 		("nointer", "use intersection-free algorithm")
@@ -68,11 +67,11 @@ int main( int args, char* argv[] )
 	Octree* mytree = new Octree( argv[1], simplify_threshold ) ;
 
 	if (vm.count("nointer")) {
-		std::cout << " Intersection-free algorithm! \n";
+		std::cout << " Intersection-free algorithm! [Ju et al. 2006] \n";
 		// Intersection-free dual contouring [Ju et al. 2006]
 		mytree->genContourNoInter2( argv[2] ) ;
 	} else {
-		std::cout << " Original algorithm! \n";
+		std::cout << " Original algorithm! [Ju et al. 2002] \n";
 		// Dual contouring [Ju et al. 2002]
 		mytree->genContour( argv[2] ) ;
 	}

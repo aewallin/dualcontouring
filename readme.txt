@@ -1,3 +1,7 @@
+------------------------------------
+Anders' github fork readme
+------------------------------------
+
 To test:
 $ mkdir bld
 $ cd bld
@@ -11,8 +15,13 @@ Options:
 --test           (run intersection tests after contouring)
 
 This produces a test.ply file that can be viewed with meshlab.
+$ meshlab test.ply
 
-original readme:
+When running with --nointer the --test should obviously(?) return zero
+intersections.
+
+-------------------------------------
+Original readme:
 -------------------------------------
 Dual Contouring Implementation in C++
 

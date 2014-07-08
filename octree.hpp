@@ -241,6 +241,9 @@ public:
 
 
 /* Global variables */
+
+// map from the 12 edges of the cube to the 8 vertices.
+// example: edge 0 connects vertices 0,4
 const int edgevmap[12][2] = {{0,4},{1,5},{2,6},{3,7},{0,2},{1,3},{4,6},{5,7},{0,1},{2,3},{4,5},{6,7}};
 const int edgemask[3] = { 5, 3, 6 } ;
 
@@ -248,11 +251,12 @@ const int edgemask[3] = { 5, 3, 6 } ;
 // st is the corner of the cube with minimum (x,y,z) coordinates
 const int vertMap[8][3] = {{0,0,0},{0,0,1},{0,1,0},{0,1,1},{1,0,0},{1,0,1},{1,1,0},{1,1,1}} ;
 
+// map from the 6 faces of the cube to the 4 vertices that bound the face
 const int faceMap[6][4] = {{4, 8, 5, 9}, {6, 10, 7, 11},{0, 8, 1, 10},{2, 9, 3, 11},{0, 4, 2, 6},{1, 5, 3, 7}} ;
 
 // used in cellProcContour(). 
 // between 8 child-nodes there are 12 faces.
-// first two numners are child-pairs, to be processed by faceProcContour()
+// first two numbers are child-pairs, to be processed by faceProcContour()
 // the last number is "dir" ?
 const int cellProcFaceMask[12][3] = {{0,4,0},{1,5,0},{2,6,0},{3,7,0},{0,2,1},{4,6,1},{1,3,1},{5,7,1},{0,1,2},{2,3,2},{4,5,2},{6,7,2}} ;
 
@@ -346,8 +350,8 @@ private:
 	float simplify_threshold;
 	OctreeNode* simplify( OctreeNode* node, int st[3], int len, float thresh ) ;
 
-	void readSOG ( char* fname ) ; // read SOG file
-	OctreeNode* readSOG ( FILE* fin, int st[3], int len, int ht, float origin[3], float range ) ;
+	//void readSOG ( char* fname ) ; // read SOG file
+	//OctreeNode* readSOG ( FILE* fin, int st[3], int len, int ht, float origin[3], float range ) ;
 	void readDCF ( char* fname ) ; // read DCF file
 	OctreeNode* readDCF ( FILE* fin, int st[3], int len, int ht ) ;
 

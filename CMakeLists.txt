@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 2.6)
  
 Project(dc)
- 
+
+# command-line parsing using the boost program-options library
 find_package(Boost COMPONENTS program_options REQUIRED) 
 
  
@@ -21,7 +22,7 @@ set(DC_INCLUDE_FILES
     octree.hpp
     PLYReader.hpp
     PLYWriter.hpp
-    SOGReader.hpp
+    # SOGReader.hpp
 )
 
 set(CMAKE_CXX_FLAGS "-fpermissive") 
