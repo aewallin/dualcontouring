@@ -219,7 +219,7 @@ void Octree::readSOG( char* fname ) {
 	fread( header, sizeof( char ), strlen(header) + 1, fin );
 	if ( strcmp(header, "SOG.Format 1.0") )
 	{
-		printf("Incorrect file format.\n", fname) ;
+		printf("Incorrect file format: %s \n", fname) ;
 		exit(1);
 	}
 	fread( origin, sizeof( float ), 3, fin );
