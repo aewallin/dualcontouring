@@ -229,11 +229,14 @@ void Octree::readDCF( char* fname ) {
 		maxDepth ++ ;
 		temp <<= 1 ;
 	}
-	printf("dimen: %d maxDepth: %d\n", this->dimen, maxDepth ) ;
+	printf(" dimen: %d maxDepth: %d\n", this->dimen, maxDepth ) ;
 
 	// Recursive reader
 	int st[3] = {0, 0, 0} ;
 	this->root = readDCF( fin, st, dimen, maxDepth ) ;
+	int nodecount[3];
+	countNodes( nodecount );
+	std::cout << " Read nodes from file: Internal " << nodecount[0] << "\tPseudo " << nodecount[1] << "\tLeaf " << nodecount[2] << "\n";
 
 	// optional octree simplification
 	if (simplify_threshold > 0 ) {
@@ -297,9 +300,9 @@ OctreeNode* Octree::readDCF( FILE* fin, int st[3], int len, int height ) {
 		float inters[12][3], norms[12][3] ;
 		int numinters = 0;
 		for ( int i = 0 ; i < 12 ; i ++ ) { // potentially there are 12 intersections, one for each edge of the cube
-			int num ;
+			int num = 0;
 			fread( &num, sizeof( int ), 1, fin ) ;
-			if ( num > 0 ) {
+			//if ( num > 0 ) {
 				for ( int j = 0 ; j < num ; j ++ ) {
 					float off ;
 					fread( &off, sizeof( float ), 1, fin ) ;
@@ -313,7 +316,7 @@ OctreeNode* Octree::readDCF( FILE* fin, int st[3], int len, int height ) {
 					inters[numinters][dir] += off ;
 					numinters ++ ;
 				}
-			}
+			//}
 		}
 		
 		if ( numinters > 0 )
@@ -403,7 +406,7 @@ void Octree::genContour( char* fname ) {
 
 	FILE* fout = fopen ( fname, "wb" ) ;
 	cellProcCount ( root, numVertices, numTris ) ;
-	printf("Vertices counted: %d Triangles counted: %d \n", numVertices, numTris ) ;
+	printf("numVertices: %d numTriangles: %d \n", numVertices, numTris ) ;
 	PLYWriter::writeHeader( fout, numVertices, numTris ) ;
 	int offset = 0; // start of vertex index
 
@@ -674,7 +677,7 @@ void Octree::processEdgeWrite ( OctreeNode* node[4], int dir, FILE* fout )  {
 
 
 // used initially for counting number of vertices
-// genContour calls cellProcCount(root)
+// genContour calls cellProcCount(root) and this is a recursive function
 void Octree::cellProcCount( OctreeNode* node, int& nverts, int& nfaces )  {
 	if ( node == NULL )
 		return ;
@@ -682,21 +685,22 @@ void Octree::cellProcCount( OctreeNode* node, int& nverts, int& nfaces )  {
 	int type = node->getType() ;
 
 	if (type != INTERNAL)
-		nverts ++ ; // leaf or pseudoleaf produce a vertex
-	else { // recurse into tree
+		nverts ++ ; // !internal, so leaf or pseudoleaf node produces a vertex
+	else { 
+		// recurse into tree
 		InternalNode* inode = (( InternalNode * ) node ) ;
 		
-		for ( int i = 0 ; i < 8 ; i ++ ) // 8 Cell calls
+		for ( int i = 0 ; i < 8 ; i ++ ) // 8 recursive calls to child nodes
 			cellProcCount( inode->child[ i ], nverts, nfaces ) ;
 
-		OctreeNode* fcd[2] ;
-		for ( int i = 0 ; i < 12 ; i ++ ) {  // 12 face calls
+		OctreeNode* fcd[2];
+		for ( int i = 0 ; i < 12 ; i ++ ) {  // 12 face calls. among the 8 child-nodes there are 12 common faces
 			int c[ 2 ] = { cellProcFaceMask[ i ][ 0 ], cellProcFaceMask[ i ][ 1 ] };
 			fcd[0] = inode->child[ c[0] ] ;
 			fcd[1] = inode->child[ c[1] ] ;
-			faceProcCount( fcd, cellProcFaceMask[ i ][ 2 ], nverts, nfaces ) ;
+			faceProcCount( fcd, cellProcFaceMask[ i ][ 2 ], nverts, nfaces ); // 2nd argument is "dir"
 		}
-		
+
 		OctreeNode* ecd[4] ;
 		for ( int i = 0 ; i < 6 ; i ++ ) { // 6 edge calls
 			int c[ 4 ] = { cellProcEdgeMask[ i ][ 0 ], cellProcEdgeMask[ i ][ 1 ], cellProcEdgeMask[ i ][ 2 ], cellProcEdgeMask[ i ][ 3 ] };
@@ -708,16 +712,14 @@ void Octree::cellProcCount( OctreeNode* node, int& nverts, int& nfaces )  {
 };
 
 void Octree::faceProcCount ( OctreeNode* node[2], int dir, int& nverts, int& nfaces ) {
-	if ( ! ( node[0] && node[1] ) )
+	if ( ! ( node[0] && node[1] ) ) 
 		return ;
-
+	
 	int type[2] = { node[0]->getType(), node[1]->getType() } ;
 
 	if ( type[0] == INTERNAL || type[1] == INTERNAL ) {
-		// 4 face calls
-		OctreeNode* fcd[2] ;
-		for ( int i = 0 ; i < 4 ; i ++ )
-		{
+		OctreeNode* fcd[2] ; 
+		for ( int i = 0 ; i < 4 ; i ++ ) { // 4 face calls, recursive!
 			int c[2] = { faceProcFaceMask[ dir ][ i ][ 0 ], faceProcFaceMask[ dir ][ i ][ 1 ] };
 			for ( int j = 0 ; j < 2 ; j ++ ) {
 				if ( type[j] != INTERNAL )
@@ -748,8 +750,7 @@ void Octree::faceProcCount ( OctreeNode* node[2], int dir, int& nverts, int& nfa
 	}
 };
 
-void Octree::edgeProcCount ( OctreeNode* node[4], int dir, int& nverts, int& nfaces ) 
-{
+void Octree::edgeProcCount ( OctreeNode* node[4], int dir, int& nverts, int& nfaces ) {
 	if ( ! ( node[0] && node[1] && node[2] && node[3] ) )
 		return ;
 
@@ -827,7 +828,7 @@ void Octree::processEdgeCount ( OctreeNode* node[4], int dir, int& nverts, int& 
 	}
 
 	if ( sc[ mini ] == 1 ) {
-		nfaces ++ ;
+		nfaces ++ ; // triangle
 		if ( node[0] != node[1] && node[1] != node[3] && node[3] != node[2] && node[2] != node[0] )
 			nfaces ++ ; // quad, so two triangles
 	}

@@ -254,18 +254,21 @@ const int vertMap[8][3] = {{0,0,0},{0,0,1},{0,1,0},{0,1,1},{1,0,0},{1,0,1},{1,1,
 // map from the 6 faces of the cube to the 4 vertices that bound the face
 const int faceMap[6][4] = {{4, 8, 5, 9}, {6, 10, 7, 11},{0, 8, 1, 10},{2, 9, 3, 11},{0, 4, 2, 6},{1, 5, 3, 7}} ;
 
+// first used by cellProcCount()
 // used in cellProcContour(). 
 // between 8 child-nodes there are 12 faces.
 // first two numbers are child-pairs, to be processed by faceProcContour()
 // the last number is "dir" ?
 const int cellProcFaceMask[12][3] = {{0,4,0},{1,5,0},{2,6,0},{3,7,0},{0,2,1},{4,6,1},{1,3,1},{5,7,1},{0,1,2},{2,3,2},{4,5,2},{6,7,2}} ;
 
-// used in cellProcContour() when calling edgeProc()
+
+// then used in cellProcContour() when calling edgeProc()
 // between 8 children there are 6 common edges
 // table lists the 4 children that share the edge
 // the last number is "dir" ?
 const int cellProcEdgeMask[6][5] = {{0,1,2,3,0},{4,5,6,7,0},{0,4,1,5,1},{2,6,3,7,1},{0,2,4,6,2},{1,3,5,7,2}} ;
 
+// usde by faceProcCount()
 const int faceProcFaceMask[3][4][3] = {
 	{{4,0,0},{5,1,0},{6,2,0},{7,3,0}},
 	{{2,0,1},{6,4,1},{3,1,1},{7,5,1}},
@@ -303,7 +306,7 @@ public:
 	OctreeNode* root ;
 	int dimen; 	   // Length of grid
 	int maxDepth;
-	int hasQEF;    // used in simplify(), can be removed
+	int hasQEF;    // used in simplify()
 	int faceVerts, edgeVerts;
 	int actualTris ; // number of triangles produced by cellProcContour()
 	int founds, news ;

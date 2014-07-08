@@ -57,30 +57,26 @@ int main( int args, char* argv[] )
 	float simplify_threshold = -1;
 	if (vm.count("simplify")) {
 		simplify_threshold = vm["simplify"].as<float>();
-		std::cout << "Simplify threshold set: " << simplify_threshold << ".\n";
+		std::cout << "Simplify threshold set: " << simplify_threshold << "\n";
 	} else {
 		std::cout << "Simplify not set.\n";
 	}
 
-	// Reading input file
+	// Read input file
 	std::cout << " input file: " << argv[1] << "\n";
 	Octree* mytree = new Octree( argv[1], simplify_threshold ) ;
 
 	if (vm.count("nointer")) {
-		std::cout << " Intersection-free algorithm! [Ju et al. 2006] \n";
-		// Intersection-free dual contouring [Ju et al. 2006]
+		std::cout << "Intersection-free algorithm! [Ju et al. 2006] \n";
 		mytree->genContourNoInter2( argv[2] ) ;
 	} else {
-		std::cout << " Original algorithm! [Ju et al. 2002] \n";
-		// Dual contouring [Ju et al. 2002]
+		std::cout << "Original algorithm! [Ju et al. 2002] \n";
 		mytree->genContour( argv[2] ) ;
 	}
 	
-	
 	if (vm.count("test")) {
 		printf("Running intersection test... \n") ;
-		// Pairwise intersection test - may take a while
-		int num = Intersection::testIntersection( argv[2], argv[3] ) ;
+		int num = Intersection::testIntersection( argv[2], argv[3] ); // Pairwise intersection test - may take a while
 		printf("%d intersections found!\n", num) ;
 	}
 }

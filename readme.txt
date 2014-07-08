@@ -1,5 +1,6 @@
 ------------------------------------
-Anders' github fork readme
+Anders github fork readme
+https://github.com/aewallin/dualcontouring
 ------------------------------------
 
 To test:
@@ -22,6 +23,8 @@ intersections.
 
 -------------------------------------
 Original readme:
+http://www1.cse.wustl.edu/~taoju/
+http://sourceforge.net/projects/dualcontouring/
 -------------------------------------
 Dual Contouring Implementation in C++
 
