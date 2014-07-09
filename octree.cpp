@@ -31,6 +31,20 @@
 #include "octree.hpp"
 #include "PLYWriter.hpp"
 
+
+#if _WIN64 || __x86_64__ || __ppc64__
+	#define ENVIRONMENT64
+#else
+	#define ENVIRONMENT32
+#endif
+
+
+#ifdef ENVIRONMENT64
+	typedef long int ptr_type;
+#else
+	typedef int ptr_type;
+#endif
+
 Octree::Octree( char* fname,  double threshold )
 {
 	simplify_threshold = threshold;
@@ -1642,7 +1656,7 @@ void Octree::processEdgeNoInter2( OctreeNode* node[4], int st[3], int len, int d
 #endif
 		{
 			// Different level, check if the dual edge passes through the face
-			if ( hash->FindKey( (int) (node[a]), (int)(node[b]), fverts[i], location[i] ) )
+			if ( hash->FindKey( (ptr_type) (node[a]), (ptr_type)(node[b]), fverts[i], location[i] ) )
 			{
 				// The vertex was found previously
 				founds++ ;
@@ -1671,11 +1685,11 @@ void Octree::processEdgeNoInter2( OctreeNode* node[4], int st[3], int len, int d
 					nv->next = vlist->next ;
 					vlist->next = nv ;
 					fverts[i] = numVerts ;
-					location[i] = ((int) nv) ;
+					location[i] = ((ptr_type) nv) ;
 					nvert[i] = 1 ;
 					numVerts ++ ;
 
-					hash->InsertKey( (int)(node[a]), (int)(node[b]), fverts[i], location[i] ) ;
+					hash->InsertKey( (ptr_type)(node[a]), (ptr_type)(node[b]), fverts[i], location[i] ) ;
 
 
 					hasFverts[ i ] = 1 ;
